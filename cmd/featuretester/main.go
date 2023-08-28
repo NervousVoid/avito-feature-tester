@@ -2,48 +2,51 @@ package main
 
 import (
 	"database/sql"
-	"featuretester/pkg/feature"
-	"fmt"
+	"featuretester/pkg/handlers"
 	"github.com/gorilla/mux"
+	"log"
 	"net/http"
+	"os"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func main() {
+	infoLog := log.New(os.Stdout, "INFO\tMAIN\t", log.Ldate|log.Ltime)
+	errLog := log.New(os.Stderr, "ERROR\tMAIN\t", log.Ldate|log.Ltime)
+
 	dsn := "root:avito@tcp(localhost:3306)/featuretest?"
 	dsn += "&charset=utf8"
 	dsn += "&interpolateParams=true"
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		fmt.Printf("Couldn't start database driver: %v\n", err)
+		errLog.Printf("Couldn't start database driver: %s\n", err)
 	}
 	defer func(db *sql.DB) {
 		err := db.Close()
 		if err != nil {
-			fmt.Println("Error closing database connection\n")
+			errLog.Printf("Error closing database connection: %s\n", err)
 		}
 	}(db)
 	db.SetMaxOpenConns(50)
 
 	err = db.Ping()
 	if err != nil {
-		fmt.Printf("Couldn't connect to the database: %v\n", err)
+		errLog.Printf("Couldn't connect to the database: %s\n", err)
 	}
 
-	featureHandler := feature.Handler{DB: db}
+	featureHandler := handlers.NewFeaturesHandler(db)
 
 	r := mux.NewRouter()
-
 	r.HandleFunc("/api/create", featureHandler.AddFeature).Methods("POST")
 	r.HandleFunc("/api/delete", featureHandler.DeleteFeature).Methods("DELETE")
 	r.HandleFunc("/api/updatefeatures", featureHandler.UpdateUserFeatures).Methods("POST")
 	r.HandleFunc("/api/getuserfeatures", featureHandler.GetUserFeatures).Methods("GET")
 
-	fmt.Println("starting server at :8000")
+	infoLog.Println("starting server at :8000")
 	err = http.ListenAndServe("localhost:8000", r)
 	if err != nil {
-		panic(err) // УБРАТЬ ПАНИКУ
+		errLog.Printf("listen and serve: %s\n", err)
 	}
 }
