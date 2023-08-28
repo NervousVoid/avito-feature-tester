@@ -15,7 +15,8 @@ const (
 	ErrorDeletingFromDB      = "error deleting row from database"
 	ErrorNotFound            = "source was not found"
 	ErrorGettingAffectedRows = "error getting rows affected"
-	ErrorGettingLastID       = "Error getting last affected ID"
+	ErrorGettingLastID       = "error getting last affected ID"
+	ErrorGettingDataFromBD   = "error getting info from database"
 )
 
 func JSONError(w http.ResponseWriter, r *http.Request, status int, msg string) {

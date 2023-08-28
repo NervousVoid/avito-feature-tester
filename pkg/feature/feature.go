@@ -1,8 +1,9 @@
 package feature
 
 type Template struct {
-	FeatureSlug         string        `json:"feature_slug"`
-	UserID              int           `json:"user_id"`
-	AddFeaturesSlugs    []interface{} `json:"add_features_slugs"`
-	DeleteFeaturesSlugs []interface{} `json:"delete_features_slugs"`
+	FeatureSlug      string        `json:"feature_slug"`
+	Features         []string      `json:"features"`
+	UserID           int           `json:"user_id"`
+	AssignFeatures   []interface{} `json:"assign_features"`
+	UnassignFeatures []interface{} `json:"unassign_features"`
 }
