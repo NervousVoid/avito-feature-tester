@@ -6,12 +6,14 @@ import (
 )
 
 const (
-	ErrorCantUnpackPayload  = "can't unpack payload"
-	ErrorCantReadPayload    = "can't read payload"
-	ErrorMarshalError       = "marshal error"
-	ErrorResponseWriteError = "error writing response"
-	ErrorBodyCloseError     = "error closing response body"
-	ErrorInsertingDB        = "error writing to database"
+	ErrorCantUnpackPayload = "can't unpack payload"
+	ErrorCantReadPayload   = "can't read payload"
+	ErrorMarshal           = "marshal error"
+	ErrorResponseWrite     = "error writing response"
+	ErrorBodyCloseError    = "error closing response body"
+	ErrorInsertingDB       = "error writing to database"
+	ErrorDeletingFromDB    = "error deleting row from database"
+	ErrorNotFound          = "source was not found"
 )
 
 func JSONError(w http.ResponseWriter, r *http.Request, status int, msg string) {

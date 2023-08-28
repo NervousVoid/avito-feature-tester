@@ -18,8 +18,8 @@ DROP TABLE IF EXISTS `user_feature_relation`;
 CREATE TABLE `user_feature_relation` (
     `userID` int(4) ZEROFILL NOT NULL,
     `featureID` int(3) NOT NULL,
-    FOREIGN KEY (userID) REFERENCES users(id),
-    FOREIGN KEY (featureID) REFERENCES features(id),
+    FOREIGN KEY (userID) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (featureID) REFERENCES features(id) ON DELETE CASCADE,
     UNIQUE (userID, featureID)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

@@ -37,7 +37,9 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/api/create", featureHandler.AddFeature).Methods("POST")
-	//r.HandleFunc("/api/delete", feature.DeleteFeature).Methods("DELETE")
+	r.HandleFunc("/api/delete", featureHandler.DeleteFeature).Methods("DELETE")
+	r.HandleFunc("/api/updatefeatures", featureHandler.UpdateUserFeatures).Methods("POST")
+	r.HandleFunc("/api/getuserfeatures", featureHandler.GetUserFeatures).Methods("GET")
 
 	fmt.Println("starting server at :8000")
 	err = http.ListenAndServe("localhost:8000", r)
