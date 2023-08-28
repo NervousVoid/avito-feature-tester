@@ -31,14 +31,9 @@ func NewFeaturesRepo(db *sql.DB) FeaturesRepo {
 	}
 }
 
-// INSERT IGNORE INTO features (`slug`) VALUES
-// (SOME_SLUG_1),
-// (SOME_SLUG_2),
-// ...
-// (SOME_SLUG_99);
 func (fr *featuresRepo) InsertFeature(featureSlug string) error {
 	result, err := fr.db.Exec(
-		"INSERT IGNORE INTO features (`slug`) VALUES (?)",
+		"INSERT INTO features (`slug`) VALUES (?) ON DUPLICATE KEY UPDATE is_active = TRUE",
 		featureSlug,
 	)
 	if err != nil {
@@ -58,10 +53,11 @@ func (fr *featuresRepo) InsertFeature(featureSlug string) error {
 	return nil
 }
 
-// DELETE FROM features WHERE slug = SOME_SLUG
 func (fr *featuresRepo) DeleteFeature(featureSlug string) error {
 	result, err := fr.db.Exec(
-		"DELETE FROM features WHERE slug = ?",
+		`UPDATE features SET is_active = FALSE WHERE slug = ?; `+
+			`UPDATE user_feature_relation SET is_active = FALSE, date_unassigned = CURRENT_TIMESTAMP WHERE feature_id = (SELECT id FROM features WHERE slug = ?)`,
+		featureSlug,
 		featureSlug,
 	)
 	if err != nil {
@@ -82,29 +78,22 @@ func (fr *featuresRepo) DeleteFeature(featureSlug string) error {
 	return nil
 }
 
-// DELETE FROM user_feature_relation WHERE userID = 1234 AND featureID IN
-// (
-// (SELECT id FROM features WHERE slug = SOME_SLUG_1 LIMIT 1),
-// ((SELECT id FROM features WHERE slug = SOME_SLUG_2 LIMIT 1),
-// ...
-// ((SELECT id FROM features WHERE slug = SOME_SLUG_99 LIMIT 1)
-// )
 func (fr *featuresRepo) UnassignFeatures(userID int, featuresToUnassign []interface{}) error {
 	if len(featuresToUnassign) == 0 {
 		return nil
 	}
 
 	payload := fmt.Sprintf(
-		`DELETE FROM user_feature_relation WHERE userID = %d AND featureID IN (`,
+		`UPDATE user_feature_relation SET is_active = FALSE, date_unassigned = CURRENT_TIMESTAMP WHERE user_id = %d AND feature_id IN (`,
 		userID,
 	)
 	for pos, _ := range featuresToUnassign {
-		payload += "(SELECT id FROM features WHERE slug = ?)"
+		payload += "(SELECT id FROM features WHERE slug = ? AND is_active = TRUE)"
 		if pos < len(featuresToUnassign)-1 {
 			payload += ", "
 		}
 	}
-	payload += ")"
+	payload += ") AND is_active = TRUE"
 
 	result, err := fr.db.Exec(
 		payload,
@@ -128,18 +117,13 @@ func (fr *featuresRepo) UnassignFeatures(userID int, featuresToUnassign []interf
 	return nil
 }
 
-// INSERT IGNORE INTO user_feature_relation VALUES
-// (111, (SELECT id FROM features WHERE slug = SOME_SLUG_1)),
-// (112, (SELECT id FROM features WHERE slug = SOME_SLUG_2)),
-// ...
-// (111, (SELECT id FROM features WHERE slug = SOME_SLUG_99))
 func (fr *featuresRepo) AssignFeatures(userID int, featuresToAssign []interface{}) error {
 	if len(featuresToAssign) == 0 {
 		return nil
 	}
-	payload := "INSERT IGNORE INTO user_feature_relation VALUES "
+	payload := "INSERT IGNORE INTO user_feature_relation (`user_id`, `feature_id`) VALUES "
 	for pos, _ := range featuresToAssign {
-		payload += fmt.Sprintf(`(%d, (SELECT id FROM features WHERE slug = ?))`, userID)
+		payload += fmt.Sprintf(`(%d, (SELECT id FROM features WHERE slug = ? AND is_active = TRUE))`, userID)
 		if pos < len(featuresToAssign)-1 {
 			payload += ", "
 		}
@@ -170,7 +154,7 @@ func (fr *featuresRepo) AssignFeatures(userID int, featuresToAssign []interface{
 func (fr *featuresRepo) GetUserFeatures(ctx context.Context, userID int) (*Template, error) {
 	rows, err := fr.db.QueryContext(
 		ctx,
-		"SELECT slug FROM features WHERE id IN (SELECT featureID FROM user_feature_relation WHERE userID = ?)",
+		"SELECT slug FROM features WHERE id IN (SELECT feature_id FROM user_feature_relation WHERE user_id = ? AND is_active = TRUE) AND is_active = TRUE",
 		userID,
 	)
 	if err != nil {

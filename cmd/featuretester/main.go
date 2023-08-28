@@ -17,6 +17,7 @@ func main() {
 
 	dsn := "root:avito@tcp(localhost:3306)/featuretest?"
 	dsn += "&charset=utf8"
+	dsn += "&multiStatements=true"
 	dsn += "&interpolateParams=true"
 
 	db, err := sql.Open("mysql", dsn)
