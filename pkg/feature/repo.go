@@ -12,9 +12,11 @@ import (
 type FeaturesRepo interface {
 	InsertFeature(featureSlug string) error
 	DeleteFeature(featureSlug string) error
-	UnassignFeatures(userID int, featuresToUnassign []interface{}) error
-	AssignFeatures(userID int, featuresToAssign []interface{}) error
+	UnassignFeatures(userID int, featuresToUnassign ...interface{}) error
+	AssignFeatures(userID int, featuresToAssign ...interface{}) error
 	GetUserFeatures(ctx context.Context, userID int) (*Template, error)
+	GetNRandomUsersWithoutFeature(n int, slug string) ([]int, error)
+	GetActiveUsersAmount() (int, error)
 }
 
 type featuresRepo struct {
@@ -29,6 +31,69 @@ func NewFeaturesRepo(db *sql.DB) FeaturesRepo {
 		InfoLog: log.New(os.Stdout, "INFO\tFEATURES REPO\t", log.Ldate|log.Ltime),
 		ErrLog:  log.New(os.Stdout, "ERROR\tFEATURES REPO\t", log.Ldate|log.Ltime),
 	}
+}
+
+func (fr *featuresRepo) GetNRandomUsersWithoutFeature(n int, slug string) ([]int, error) {
+	userIDs := []int{}
+
+	rows, err := fr.db.Query(
+		`SELECT DISTINCT u.id FROM users u
+				WHERE (SELECT user_id 
+					   FROM user_feature_relation 
+					   WHERE user_id = u.id 
+					   AND feature_id = 
+							(SELECT id 
+							FROM features 
+							WHERE slug = ? 
+							LIMIT 1) 
+					   AND is_active = TRUE 
+					   ORDER BY date_assigned 
+					   LIMIT 1) IS NULL 
+					   AND is_active = TRUE
+				ORDER BY RAND() LIMIT ?`,
+		slug,
+		n,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var id int
+		err = rows.Scan(&id)
+		if err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, id)
+	}
+	err = rows.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return userIDs, nil
+}
+
+func (fr *featuresRepo) GetActiveUsersAmount() (int, error) {
+	rows, err := fr.db.Query(`SELECT COUNT(id) FROM users WHERE is_active = TRUE`)
+	if err != nil {
+		return 0, err
+	}
+
+	var amount int
+
+	rows.Next()
+	err = rows.Scan(&amount)
+	if err != nil {
+		return 0, err
+	}
+
+	err = rows.Close()
+	if err != nil {
+		return 0, err
+	}
+
+	return amount, nil
 }
 
 func (fr *featuresRepo) InsertFeature(featureSlug string) error {
@@ -78,7 +143,7 @@ func (fr *featuresRepo) DeleteFeature(featureSlug string) error {
 	return nil
 }
 
-func (fr *featuresRepo) UnassignFeatures(userID int, featuresToUnassign []interface{}) error {
+func (fr *featuresRepo) UnassignFeatures(userID int, featuresToUnassign ...interface{}) error {
 	if len(featuresToUnassign) == 0 {
 		return nil
 	}
@@ -117,7 +182,7 @@ func (fr *featuresRepo) UnassignFeatures(userID int, featuresToUnassign []interf
 	return nil
 }
 
-func (fr *featuresRepo) AssignFeatures(userID int, featuresToAssign []interface{}) error {
+func (fr *featuresRepo) AssignFeatures(userID int, featuresToAssign ...interface{}) error {
 	if len(featuresToAssign) == 0 {
 		return nil
 	}

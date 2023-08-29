@@ -6,4 +6,5 @@ type Template struct {
 	UserID           int           `json:"user_id"`
 	AssignFeatures   []interface{} `json:"assign_features"`
 	UnassignFeatures []interface{} `json:"unassign_features"`
+	Fraction         int           `json:"fraction"`
 }

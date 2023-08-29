@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"featuretester/pkg/errors"
 	"featuretester/pkg/feature"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 )
@@ -23,6 +25,59 @@ func NewFeaturesHandler(db *sql.DB) *FeaturesHandler {
 		InfoLog:      log.New(os.Stdout, "INFO\tFEATURES HANDLER\t", log.Ldate|log.Ltime),
 		ErrLog:       log.New(os.Stdout, "ERROR\tFEATURES HANDLER\t", log.Ldate|log.Ltime),
 	}
+}
+
+func (fh *FeaturesHandler) AutoAssignFeature(w http.ResponseWriter, r *http.Request) {
+	receivedRequest := &feature.Template{}
+
+	var body []byte
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorCantReadPayload)
+		return
+	}
+
+	err = r.Body.Close()
+	if err != nil {
+		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorBodyCloseError)
+		return
+	}
+
+	err = json.Unmarshal(body, receivedRequest)
+	if err != nil {
+		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorCantUnpackPayload)
+		return
+	}
+
+	if receivedRequest.Fraction < 1 || receivedRequest.Fraction > 100 {
+		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorCantUnpackPayload)
+		return
+	}
+
+	activeUsers, err := fh.FeaturesRepo.GetActiveUsersAmount()
+	if err != nil {
+		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorGettingDataFromBD)
+		return
+	}
+
+	sampleSize := int(math.Ceil(float64(activeUsers) * (float64(receivedRequest.Fraction) / 100)))
+
+	users, err := fh.FeaturesRepo.GetNRandomUsersWithoutFeature(sampleSize, receivedRequest.FeatureSlug)
+	if err != nil {
+		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorGettingDataFromBD)
+		return
+	}
+
+	for _, usr := range users {
+		go func(id int) {
+			err = fh.FeaturesRepo.AssignFeatures(id, receivedRequest.FeatureSlug)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}(usr)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (fh *FeaturesHandler) AddFeature(w http.ResponseWriter, r *http.Request) {

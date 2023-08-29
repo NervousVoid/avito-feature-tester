@@ -47,6 +47,7 @@ func main() {
 	r.HandleFunc("/api/update_user_features", featureHandler.UpdateUserFeatures).Methods("POST")
 	r.HandleFunc("/api/get_user_features", featureHandler.GetUserFeatures).Methods("GET")
 	r.HandleFunc("/api/get_user_history", reportHandler.GetFeatureHistory).Methods("GET")
+	r.HandleFunc("/api/auto_assign_feature", featureHandler.AutoAssignFeature).Methods("POST")
 
 	r.PathPrefix("/reports/").Handler(
 		http.StripPrefix("/reports/",
