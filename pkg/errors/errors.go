@@ -17,6 +17,8 @@ const (
 	ErrorGettingAffectedRows = "error getting rows affected"
 	ErrorGettingLastID       = "error getting last affected ID"
 	ErrorGettingDataFromBD   = "error getting info from database"
+	ErrorValidatingData      = "error validating data"
+	ErrorGettingDataFromDB   = "error getting data from database"
 )
 
 func JSONError(w http.ResponseWriter, r *http.Request, status int, msg string) {

@@ -121,7 +121,7 @@ func (fr *featuresRepo) AssignFeatures(userID int, featuresToAssign []interface{
 	if len(featuresToAssign) == 0 {
 		return nil
 	}
-	payload := "INSERT IGNORE INTO user_feature_relation (`user_id`, `feature_id`) VALUES "
+	payload := "INSERT INTO user_feature_relation (`user_id`, `feature_id`) VALUES "
 	for pos, _ := range featuresToAssign {
 		payload += fmt.Sprintf(`(%d, (SELECT id FROM features WHERE slug = ? AND is_active = TRUE))`, userID)
 		if pos < len(featuresToAssign)-1 {

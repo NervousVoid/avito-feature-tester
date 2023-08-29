@@ -26,8 +26,7 @@ CREATE TABLE `user_feature_relation` (
     `date_unassigned` DATETIME,
     `ttl` DATETIME,
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (feature_id) REFERENCES features(id),
-    UNIQUE (user_id, feature_id)
+    FOREIGN KEY (feature_id) REFERENCES features(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 INSERT INTO `users` (`id`) VALUES

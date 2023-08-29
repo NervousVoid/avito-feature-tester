@@ -13,7 +13,6 @@ import (
 
 type FeaturesHandler struct {
 	FeaturesRepo feature.FeaturesRepo
-	DB           *sql.DB
 	InfoLog      *log.Logger
 	ErrLog       *log.Logger
 }
