@@ -11,6 +11,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
+//	@title			Dynamic User Segmentation Service API
+//	@version		1.0
+//	@description	Avito Tech backend trainee assignment 2023
+
+//	@contact.name	Peter Androsov
+//	@contact.url	http://t.me/nervous_void
+//	@contact.email	androsov.p.v@gmail.com
+//	@BasePath	/api/
+
 const maxDBConnections = 50
 
 func main() {
@@ -48,7 +57,7 @@ func main() {
 	r.HandleFunc("/api/delete_segment", segmentHandler.DeleteSegment).Methods("DELETE")
 	r.HandleFunc("/api/update_user_segments", segmentHandler.UpdateUserSegments).Methods("POST")
 	r.HandleFunc("/api/get_user_segments", segmentHandler.GetUserSegments).Methods("GET")
-	r.HandleFunc("/api/get_user_history", reportHandler.GetSegmentHistory).Methods("GET")
+	r.HandleFunc("/api/get_user_history", reportHandler.GetUserHistory).Methods("GET")
 	r.HandleFunc("/api/auto_assign_segments", segmentHandler.AutoAssignSegment).Methods("POST")
 
 	r.PathPrefix("/reports/").Handler(

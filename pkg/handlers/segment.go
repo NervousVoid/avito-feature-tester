@@ -26,6 +26,16 @@ func NewSegmentsHandler(db *sql.DB) *SegmentsHandler {
 	}
 }
 
+// AutoAssignSegment godoc
+//
+//	@Summary		automatically add users to segment
+//	@Description	automatically add users to segment
+//	@Accept			json
+//	@Param 			request 		body 	segment.RequestAutoAssignSegment true "The input struct"
+//	@Success		200	{string} string "assigned"
+//	@Failure		400	{string} string "bad input"
+//	@Failure		500	{string} string "something went wrong"
+//	@Router			/api/auto_assign_segments [post]
 func (fh *SegmentsHandler) AutoAssignSegment(w http.ResponseWriter, r *http.Request) {
 	f := &segment.Template{}
 
@@ -67,6 +77,16 @@ func (fh *SegmentsHandler) AutoAssignSegment(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusOK)
 }
 
+// AddSegment godoc
+//
+//	@Summary		creates new segment
+//	@Description	creates new segment
+//	@Accept			json
+//	@Param 			request		body 	segment.RequestSegmentSlug true "The input struct"
+//	@Success		201	{string} string "created"
+//	@Failure		400	{string} string "bad input"
+//	@Failure		500	{string} string "something went wrong"
+//	@Router			/api/create_segment [post]
 func (fh *SegmentsHandler) AddSegment(w http.ResponseWriter, r *http.Request) {
 	f := &segment.Template{}
 
@@ -87,6 +107,16 @@ func (fh *SegmentsHandler) AddSegment(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+// DeleteSegment godoc
+//
+//	@Summary		deletes existing segment
+//	@Description	deletes existing segment
+//	@Accept			json
+//	@Param 			request		body 	segment.RequestSegmentSlug true "The input struct"
+//	@Success		200	{string} string "deleted"
+//	@Failure		400	{string} string "bad input"
+//	@Failure		500	{string} string "something went wrong"
+//	@Router			/api/delete_segment [delete]
 func (fh *SegmentsHandler) DeleteSegment(w http.ResponseWriter, r *http.Request) {
 	f := &segment.Template{}
 
@@ -108,6 +138,16 @@ func (fh *SegmentsHandler) DeleteSegment(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 }
 
+// UpdateUserSegments godoc
+//
+//	@Summary		assign and unassign segments from user
+//	@Description	assign and unassign segments from user
+//	@Accept			json
+//	@Param 			request		body 	segment.RequestUpdateSegments true "The input struct"
+//	@Success		200	{string} string "assigned and unassigned"
+//	@Failure		400	{string} string "bad input"
+//	@Failure		500	{string} string "something went wrong"
+//	@Router			/api/update_user_segments [post]
 func (fh *SegmentsHandler) UpdateUserSegments(w http.ResponseWriter, r *http.Request) {
 	f := &segment.Template{}
 
@@ -135,6 +175,17 @@ func (fh *SegmentsHandler) UpdateUserSegments(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusOK)
 }
 
+// GetUserSegments godoc
+//
+//	@Summary		receive segments assigned to user
+//	@Description	receive segments assigned to user
+//	@Accept			json
+//	@Produce		json
+//	@Param 			request		body 	segment.RequestUserID true "The input struct"
+//	@Success		200	{object} segment.UserSegments
+//	@Failure		400	{string} string "bad input"
+//	@Failure		500	{string} string "something went wrong"
+//	@Router			/api/get_user_segments [get]
 func (fh *SegmentsHandler) GetUserSegments(w http.ResponseWriter, r *http.Request) {
 	receivedUserID := &segment.Template{}
 

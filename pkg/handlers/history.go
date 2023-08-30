@@ -24,7 +24,18 @@ func NewHistoryHandler(db *sql.DB) *HistoryHandler {
 	}
 }
 
-func (rh *HistoryHandler) GetSegmentHistory(w http.ResponseWriter, r *http.Request) {
+// GetUserHistory godoc
+//
+//	@Summary		receive report on user segments assignments
+//	@Description	receive report on user segments assignments within the given dates
+//	@Accept			json
+//	@Produce		json
+//	@Param 			request		body 	history.Request true "The input struct"
+//	@Success		200	{object} history.ReportResponse
+//	@Failure		400	{string} string "bad input"
+//	@Failure		500	{string} string "something went wrong"
+//	@Router			/api/get_user_history [get]
+func (rh *HistoryHandler) GetUserHistory(w http.ResponseWriter, r *http.Request) {
 	receivedRequest := &history.Request{}
 
 	err := errors.ValidateAndParseJSON(r, receivedRequest)
@@ -55,11 +66,7 @@ func (rh *HistoryHandler) GetSegmentHistory(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	resp, err := json.Marshal(struct {
-		CsvURL string `json:"csv_url"`
-	}{
-		CsvURL: url,
-	})
+	resp, err := json.Marshal(history.ReportResponse{CsvURL: url})
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

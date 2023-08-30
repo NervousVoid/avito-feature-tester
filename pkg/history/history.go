@@ -27,3 +27,7 @@ type ReportRow struct {
 	Operation string
 	Date      string
 }
+
+type ReportResponse struct {
+	CsvURL string `json:"csv_url s"`
+}
