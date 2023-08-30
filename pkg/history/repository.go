@@ -1,4 +1,4 @@
-package report
+package history
 
 import (
 	"context"
@@ -11,27 +11,27 @@ import (
 	"time"
 )
 
-type ReportRepo interface {
-	GetUserHistory(ctx context.Context, userID int, dates *DatesRange) ([]HistoryRow, error)
+type Repository interface {
+	GetUserHistory(ctx context.Context, userID int, dates *DatesRange) ([]ReportRow, error)
 	ParseAndValidateDates(dateStart, dateEnd string) (*DatesRange, error)
-	CreateCSV(history []HistoryRow) (string, error)
+	CreateCSV(history []ReportRow) (string, error)
 }
 
-type reportRepo struct {
+type historyRepository struct {
 	db      *sql.DB
 	InfoLog *log.Logger
 	ErrLog  *log.Logger
 }
 
-func NewReportRepo(db *sql.DB) ReportRepo {
-	return &reportRepo{
+func NewHistoryRepo(db *sql.DB) Repository {
+	return &historyRepository{
 		db:      db,
 		InfoLog: log.New(os.Stdout, "INFO\tREPORT REPO\t", log.Ldate|log.Ltime),
 		ErrLog:  log.New(os.Stdout, "ERROR\tREPORT REPO\t", log.Ldate|log.Ltime),
 	}
 }
 
-func (rr *reportRepo) ParseAndValidateDates(dateStart, dateEnd string) (*DatesRange, error) {
+func (rr *historyRepository) ParseAndValidateDates(dateStart, dateEnd string) (*DatesRange, error) {
 	dates := &DatesRange{}
 
 	if !regexp.MustCompile(`^\d{4}-\d{1,2}$`).MatchString(dateStart) ||
@@ -40,16 +40,36 @@ func (rr *reportRepo) ParseAndValidateDates(dateStart, dateEnd string) (*DatesRa
 	}
 
 	var err error
-	if len(dateStart) == 7 {
+	if len(dateStart) == len(dateFormatFullMonth) {
 		dates.StartDate, err = time.Parse("2006-01", dateStart)
+
+		if err != nil {
+			rr.ErrLog.Printf("Error validating date: %s", err)
+			return nil, err
+		}
 	} else {
 		dates.StartDate, err = time.Parse("2006-1", dateStart)
+
+		if err != nil {
+			rr.ErrLog.Printf("Error validating date: %s", err)
+			return nil, err
+		}
 	}
 
-	if len(dateEnd) == 7 {
+	if len(dateEnd) == len(dateFormatFullMonth) {
 		dates.EndDate, err = time.Parse("2006-01", dateEnd)
+
+		if err != nil {
+			rr.ErrLog.Printf("Error validating date: %s", err)
+			return nil, err
+		}
 	} else {
 		dates.EndDate, err = time.Parse("2006-1", dateEnd)
+
+		if err != nil {
+			rr.ErrLog.Printf("Error validating date: %s", err)
+			return nil, err
+		}
 	}
 
 	if err != nil {
@@ -60,8 +80,8 @@ func (rr *reportRepo) ParseAndValidateDates(dateStart, dateEnd string) (*DatesRa
 	return dates, nil
 }
 
-func (rr *reportRepo) GetUserHistory(ctx context.Context, userID int, dates *DatesRange) ([]HistoryRow, error) {
-	history := []HistoryRow{}
+func (rr *historyRepository) GetUserHistory(ctx context.Context, userID int, dates *DatesRange) ([]ReportRow, error) {
+	history := []ReportRow{}
 	rows, err := rr.db.QueryContext(
 		ctx,
 		`SELECT f.slug, ufr.date_assigned, ufr.date_unassigned 
@@ -89,10 +109,10 @@ func (rr *reportRepo) GetUserHistory(ctx context.Context, userID int, dates *Dat
 			return nil, err
 		}
 
-		var historyRowUnassign HistoryRow
+		var historyRowUnassign ReportRow
 
 		if dates.StartDate.Before(dateAssigned.Time) && dateAssigned.Time.Before(dates.EndDate) {
-			historyRowAssign := HistoryRow{
+			historyRowAssign := ReportRow{
 				UserID:    userID,
 				Feature:   slug.String,
 				Operation: "assigned",
@@ -103,7 +123,7 @@ func (rr *reportRepo) GetUserHistory(ctx context.Context, userID int, dates *Dat
 
 		if dateUnassigned.Valid && dates.EndDate.After(dateUnassigned.Time) &&
 			dates.StartDate.Before(dateUnassigned.Time) {
-			historyRowUnassign = HistoryRow{
+			historyRowUnassign = ReportRow{
 				UserID:    userID,
 				Feature:   slug.String,
 				Operation: "unassigned",
@@ -120,11 +140,11 @@ func (rr *reportRepo) GetUserHistory(ctx context.Context, userID int, dates *Dat
 	return history, nil
 }
 
-func (rr *reportRepo) CreateCSV(history []HistoryRow) (string, error) {
+func (rr *historyRepository) CreateCSV(history []ReportRow) (string, error) {
 	alpa := "abcdefghijklmnopqrstuvwxyz1234567890"
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	randStr := make([]byte, 10)
+	randStr := make([]byte, fileIDLength)
 	for i := range randStr {
 		randStr[i] = alpa[r.Intn(len(alpa))]
 	}

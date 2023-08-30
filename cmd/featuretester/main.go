@@ -3,13 +3,15 @@ package main
 import (
 	"database/sql"
 	"featuretester/pkg/handlers"
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
 )
+
+const maxDBConnections = 50
 
 func main() {
 	infoLog := log.New(os.Stdout, "INFO\tMAIN\t", log.Ldate|log.Ltime)
@@ -26,12 +28,12 @@ func main() {
 		errLog.Printf("Couldn't start database driver: %s\n", err)
 	}
 	defer func(db *sql.DB) {
-		err := db.Close()
+		err = db.Close()
 		if err != nil {
 			errLog.Printf("Error closing database connection: %s\n", err)
 		}
 	}(db)
-	db.SetMaxOpenConns(50)
+	db.SetMaxOpenConns(maxDBConnections)
 
 	err = db.Ping()
 	if err != nil {
@@ -39,7 +41,7 @@ func main() {
 	}
 
 	featureHandler := handlers.NewFeaturesHandler(db)
-	reportHandler := handlers.NewReportHandler(db)
+	reportHandler := handlers.NewHistoryHandler(db)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/api/create", featureHandler.AddFeature).Methods("POST")

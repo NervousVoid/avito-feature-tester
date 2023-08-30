@@ -2,38 +2,34 @@ package errors
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 )
 
 const (
-	ErrorCantUnpackPayload   = "can't unpack payload"
-	ErrorCantReadPayload     = "can't read payload"
-	ErrorMarshalJson         = "json marshal error"
-	ErrorResponseWrite       = "error writing response"
-	ErrorBodyCloseError      = "error closing response body"
-	ErrorInsertingDB         = "error writing to database"
-	ErrorDeletingFromDB      = "error deleting row from database"
-	ErrorNotFound            = "source was not found"
-	ErrorGettingAffectedRows = "error getting rows affected"
-	ErrorGettingLastID       = "error getting last affected ID"
-	ErrorGettingDataFromBD   = "error getting info from database"
-	ErrorValidatingData      = "error validating data"
-	ErrorGettingDataFromDB   = "error getting data from database"
+	ErrorBeginTransaction      = "error beginning transaction"
+	ErrorGettingAffectedRows   = "error getting rows affected"
+	ErrorGettingLastID         = "error getting last affected ID"
+	ErrorGettingFeatureID      = "error getting feature id"
+	ErrorCommittingTransaction = "error committing transaction"
 )
 
-func JSONError(w http.ResponseWriter, r *http.Request, status int, msg string) {
-	w.WriteHeader(status)
-	resp, err := json.Marshal(map[string]interface{}{
-		"error": msg,
-	})
+func ValidateAndParseJSON(r *http.Request, parseInto interface{}) error {
+	var body []byte
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return err
 	}
 
-	_, err = w.Write(resp)
+	err = r.Body.Close()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return err
 	}
+
+	err = json.Unmarshal(body, parseInto)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

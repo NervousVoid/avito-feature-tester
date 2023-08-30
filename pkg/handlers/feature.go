@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"featuretester/pkg/errors"
 	"featuretester/pkg/feature"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
@@ -14,7 +12,7 @@ import (
 )
 
 type FeaturesHandler struct {
-	FeaturesRepo feature.FeaturesRepo
+	FeaturesRepo feature.Repository
 	InfoLog      *log.Logger
 	ErrLog       *log.Logger
 }
@@ -28,84 +26,60 @@ func NewFeaturesHandler(db *sql.DB) *FeaturesHandler {
 }
 
 func (fh *FeaturesHandler) AutoAssignFeature(w http.ResponseWriter, r *http.Request) {
-	receivedRequest := &feature.Template{}
+	f := &feature.Template{}
 
-	var body []byte
-	body, err := ioutil.ReadAll(r.Body)
+	err := errors.ValidateAndParseJSON(r, f)
 	if err != nil {
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorCantReadPayload)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err = r.Body.Close()
+	if f.Fraction < 1 || f.Fraction > 100 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	activeUsers, err := fh.FeaturesRepo.GetActiveUsersAmount(r.Context())
 	if err != nil {
-		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorBodyCloseError)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = json.Unmarshal(body, receivedRequest)
+	sampleSize := int(math.Ceil(float64(activeUsers) * (float64(f.Fraction) / 100))) //nolint:gomnd // creating percents
+
+	users, err := fh.FeaturesRepo.GetNRandomUsersWithoutFeature(sampleSize, f.FeatureSlug)
 	if err != nil {
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorCantUnpackPayload)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	if receivedRequest.Fraction < 1 || receivedRequest.Fraction > 100 {
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorCantUnpackPayload)
-		return
-	}
-
-	activeUsers, err := fh.FeaturesRepo.GetActiveUsersAmount()
+	err = fh.FeaturesRepo.AssignFeatures(r.Context(), users, []string{f.FeatureSlug})
 	if err != nil {
-		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorGettingDataFromBD)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
-	}
-
-	sampleSize := int(math.Ceil(float64(activeUsers) * (float64(receivedRequest.Fraction) / 100)))
-
-	users, err := fh.FeaturesRepo.GetNRandomUsersWithoutFeature(sampleSize, receivedRequest.FeatureSlug)
-	if err != nil {
-		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorGettingDataFromBD)
-		return
-	}
-
-	for _, usr := range users {
-		go func(id int) {
-			err = fh.FeaturesRepo.AssignFeatures(id, receivedRequest.FeatureSlug)
-			if err != nil {
-				fmt.Println(err)
-			}
-		}(usr)
 	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
 func (fh *FeaturesHandler) AddFeature(w http.ResponseWriter, r *http.Request) {
-	receivedFeature := &feature.Template{}
+	f := &feature.Template{}
 
-	var body []byte
-	body, err := ioutil.ReadAll(r.Body)
+	err := errors.ValidateAndParseJSON(r, f)
 	if err != nil {
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorCantReadPayload)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err = r.Body.Close()
+	err = fh.FeaturesRepo.InsertFeature(r.Context(), f.FeatureSlug)
 	if err != nil {
-		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorBodyCloseError)
-		return
-	}
-
-	err = json.Unmarshal(body, receivedFeature)
-	if err != nil {
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorCantUnpackPayload)
-		return
-	}
-
-	err = fh.FeaturesRepo.InsertFeature(receivedFeature.FeatureSlug)
-	if err != nil {
-		fh.ErrLog.Printf("%s: %s", errors.ErrorInsertingDB, err)
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorInsertingDB)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -113,102 +87,66 @@ func (fh *FeaturesHandler) AddFeature(w http.ResponseWriter, r *http.Request) {
 }
 
 func (fh *FeaturesHandler) DeleteFeature(w http.ResponseWriter, r *http.Request) {
-	receivedFeature := &feature.Template{}
+	f := &feature.Template{}
 
-	var body []byte
-	body, err := ioutil.ReadAll(r.Body)
+	err := errors.ValidateAndParseJSON(r, f)
 	if err != nil {
-		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorCantReadPayload)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err = r.Body.Close()
+	err = fh.FeaturesRepo.DeleteFeature(r.Context(), f.FeatureSlug)
 	if err != nil {
-		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorBodyCloseError)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = json.Unmarshal(body, receivedFeature)
-	if err != nil {
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorCantUnpackPayload)
-		return
-	}
-
-	err = fh.FeaturesRepo.DeleteFeature(receivedFeature.FeatureSlug)
-	if err != nil {
-		fh.ErrLog.Printf("%s: %s", errors.ErrorDeletingFromDB, err)
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorDeletingFromDB)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (fh *FeaturesHandler) UpdateUserFeatures(w http.ResponseWriter, r *http.Request) {
-	receivedFeatures := &feature.Template{}
+	f := &feature.Template{}
 
-	var body []byte
-	body, err := ioutil.ReadAll(r.Body)
+	err := errors.ValidateAndParseJSON(r, f)
 	if err != nil {
-		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorCantReadPayload)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err = r.Body.Close()
+	err = fh.FeaturesRepo.AssignFeatures(r.Context(), []int{f.UserID}, f.AssignFeatures)
 	if err != nil {
-		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorBodyCloseError)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = json.Unmarshal(body, receivedFeatures)
+	err = fh.FeaturesRepo.UnassignFeatures(r.Context(), []int{f.UserID}, f.UnassignFeatures)
 	if err != nil {
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorCantUnpackPayload)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = fh.FeaturesRepo.AssignFeatures(receivedFeatures.UserID, receivedFeatures.AssignFeatures)
-	if err != nil {
-		fh.ErrLog.Printf("%s: %s", errors.ErrorInsertingDB, err)
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorInsertingDB)
-		return
-	}
-
-	err = fh.FeaturesRepo.UnassignFeatures(receivedFeatures.UserID, receivedFeatures.UnassignFeatures)
-	if err != nil {
-		fh.ErrLog.Printf("%s: %s", errors.ErrorDeletingFromDB, err)
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorDeletingFromDB)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (fh *FeaturesHandler) GetUserFeatures(w http.ResponseWriter, r *http.Request) {
 	receivedUserID := &feature.Template{}
 
-	var body []byte
-	body, err := ioutil.ReadAll(r.Body)
+	err := errors.ValidateAndParseJSON(r, receivedUserID)
 	if err != nil {
-		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorCantReadPayload)
-		return
-	}
-
-	err = r.Body.Close()
-	if err != nil {
-		errors.JSONError(w, r, http.StatusInternalServerError, errors.ErrorBodyCloseError)
-		return
-	}
-
-	err = json.Unmarshal(body, receivedUserID)
-	if err != nil {
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorCantUnpackPayload)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	userFeatures, err := fh.FeaturesRepo.GetUserFeatures(r.Context(), receivedUserID.UserID)
 	if err != nil {
-		fh.ErrLog.Printf("%s: %s", errors.ErrorGettingDataFromBD, err)
-		errors.JSONError(w, r, http.StatusBadRequest, errors.ErrorGettingDataFromBD)
+		fh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

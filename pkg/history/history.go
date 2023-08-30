@@ -1,7 +1,13 @@
-package report
+package history
 
 import (
 	"time"
+)
+
+const (
+	fileIDLength         = 10
+	dateFormatShortMonth = "2006-1"
+	dateFormatFullMonth  = "2006-01"
 )
 
 type Request struct {
@@ -15,7 +21,7 @@ type DatesRange struct {
 	EndDate   time.Time
 }
 
-type HistoryRow struct {
+type ReportRow struct {
 	UserID    int
 	Feature   string
 	Operation string
