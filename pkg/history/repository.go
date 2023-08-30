@@ -85,8 +85,8 @@ func (rr *historyRepository) GetUserHistory(ctx context.Context, userID int, dat
 	rows, err := rr.db.QueryContext(
 		ctx,
 		`SELECT f.slug, ufr.date_assigned, ufr.date_unassigned 
-		FROM user_feature_relation ufr 
-		JOIN features f ON ufr.feature_id = f.id 
+		FROM user_segment_relation ufr 
+		JOIN segments f ON ufr.segment_id = f.id 
 		WHERE ufr.user_id = ? AND (
 		ufr.date_assigned >= ? OR 
 		(ufr.date_unassigned < ? OR ufr.date_unassigned IS NULL))`,
@@ -114,7 +114,7 @@ func (rr *historyRepository) GetUserHistory(ctx context.Context, userID int, dat
 		if dates.StartDate.Before(dateAssigned.Time) && dateAssigned.Time.Before(dates.EndDate) {
 			historyRowAssign := ReportRow{
 				UserID:    userID,
-				Feature:   slug.String,
+				Segment:   slug.String,
 				Operation: "assigned",
 				Date:      dateAssigned.Time.String(),
 			}
@@ -125,7 +125,7 @@ func (rr *historyRepository) GetUserHistory(ctx context.Context, userID int, dat
 			dates.StartDate.Before(dateUnassigned.Time) {
 			historyRowUnassign = ReportRow{
 				UserID:    userID,
-				Feature:   slug.String,
+				Segment:   slug.String,
 				Operation: "unassigned",
 				Date:      dateUnassigned.Time.String(),
 			}
@@ -160,7 +160,7 @@ func (rr *historyRepository) CreateCSV(history []ReportRow) (string, error) {
 
 	fileData := ""
 	for _, row := range history {
-		fileData += fmt.Sprintf("%d;%s;%s;%s\n", row.UserID, row.Feature, row.Operation, row.Date)
+		fileData += fmt.Sprintf("%d;%s;%s;%s\n", row.UserID, row.Segment, row.Operation, row.Date)
 	}
 
 	_, err = file.Write([]byte(fileData))

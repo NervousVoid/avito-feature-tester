@@ -10,7 +10,7 @@ const (
 	ErrorBeginTransaction      = "error beginning transaction"
 	ErrorGettingAffectedRows   = "error getting rows affected"
 	ErrorGettingLastID         = "error getting last affected ID"
-	ErrorGettingFeatureID      = "error getting feature id"
+	ErrorGettingSegmentID      = "error getting segment id"
 	ErrorCommittingTransaction = "error committing transaction"
 )
 

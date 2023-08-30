@@ -3,30 +3,31 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
-	"featuretester/pkg/errors"
-	"featuretester/pkg/feature"
+	"fmt"
 	"log"
 	"math"
 	"net/http"
 	"os"
+	"usersegmentator/pkg/errors"
+	"usersegmentator/pkg/segment"
 )
 
-type FeaturesHandler struct {
-	FeaturesRepo feature.Repository
+type SegmentsHandler struct {
+	SegmentsRepo segment.Repository
 	InfoLog      *log.Logger
 	ErrLog       *log.Logger
 }
 
-func NewFeaturesHandler(db *sql.DB) *FeaturesHandler {
-	return &FeaturesHandler{
-		FeaturesRepo: feature.NewFeaturesRepo(db),
-		InfoLog:      log.New(os.Stdout, "INFO\tFEATURES HANDLER\t", log.Ldate|log.Ltime),
-		ErrLog:       log.New(os.Stdout, "ERROR\tFEATURES HANDLER\t", log.Ldate|log.Ltime),
+func NewSegmentsHandler(db *sql.DB) *SegmentsHandler {
+	return &SegmentsHandler{
+		SegmentsRepo: segment.NewSegmentsRepo(db),
+		InfoLog:      log.New(os.Stdout, "INFO\tSEGMENTS HANDLER\t", log.Ldate|log.Ltime),
+		ErrLog:       log.New(os.Stdout, "ERROR\tSEGMENTS HANDLER\t", log.Ldate|log.Ltime),
 	}
 }
 
-func (fh *FeaturesHandler) AutoAssignFeature(w http.ResponseWriter, r *http.Request) {
-	f := &feature.Template{}
+func (fh *SegmentsHandler) AutoAssignSegment(w http.ResponseWriter, r *http.Request) {
+	f := &segment.Template{}
 
 	err := errors.ValidateAndParseJSON(r, f)
 	if err != nil {
@@ -40,7 +41,7 @@ func (fh *FeaturesHandler) AutoAssignFeature(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	activeUsers, err := fh.FeaturesRepo.GetActiveUsersAmount(r.Context())
+	activeUsers, err := fh.SegmentsRepo.GetActiveUsersAmount(r.Context())
 	if err != nil {
 		fh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -49,14 +50,14 @@ func (fh *FeaturesHandler) AutoAssignFeature(w http.ResponseWriter, r *http.Requ
 
 	sampleSize := int(math.Ceil(float64(activeUsers) * (float64(f.Fraction) / 100))) //nolint:gomnd // creating percents
 
-	users, err := fh.FeaturesRepo.GetNRandomUsersWithoutFeature(sampleSize, f.FeatureSlug)
+	users, err := fh.SegmentsRepo.GetNRandomUsersWithoutSegment(sampleSize, f.SegmentSlug)
 	if err != nil {
 		fh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = fh.FeaturesRepo.AssignFeatures(r.Context(), users, []string{f.FeatureSlug})
+	err = fh.SegmentsRepo.AssignSegments(r.Context(), users, []string{f.SegmentSlug})
 	if err != nil {
 		fh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -66,8 +67,8 @@ func (fh *FeaturesHandler) AutoAssignFeature(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusOK)
 }
 
-func (fh *FeaturesHandler) AddFeature(w http.ResponseWriter, r *http.Request) {
-	f := &feature.Template{}
+func (fh *SegmentsHandler) AddSegment(w http.ResponseWriter, r *http.Request) {
+	f := &segment.Template{}
 
 	err := errors.ValidateAndParseJSON(r, f)
 	if err != nil {
@@ -76,7 +77,7 @@ func (fh *FeaturesHandler) AddFeature(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = fh.FeaturesRepo.InsertFeature(r.Context(), f.FeatureSlug)
+	err = fh.SegmentsRepo.InsertSegment(r.Context(), f.SegmentSlug)
 	if err != nil {
 		fh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -86,8 +87,8 @@ func (fh *FeaturesHandler) AddFeature(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (fh *FeaturesHandler) DeleteFeature(w http.ResponseWriter, r *http.Request) {
-	f := &feature.Template{}
+func (fh *SegmentsHandler) DeleteSegment(w http.ResponseWriter, r *http.Request) {
+	f := &segment.Template{}
 
 	err := errors.ValidateAndParseJSON(r, f)
 	if err != nil {
@@ -96,7 +97,8 @@ func (fh *FeaturesHandler) DeleteFeature(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = fh.FeaturesRepo.DeleteFeature(r.Context(), f.FeatureSlug)
+	err = fh.SegmentsRepo.DeleteSegment(r.Context(), f.SegmentSlug)
+	fmt.Println(f.SegmentSlug)
 	if err != nil {
 		fh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -106,8 +108,8 @@ func (fh *FeaturesHandler) DeleteFeature(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 }
 
-func (fh *FeaturesHandler) UpdateUserFeatures(w http.ResponseWriter, r *http.Request) {
-	f := &feature.Template{}
+func (fh *SegmentsHandler) UpdateUserSegments(w http.ResponseWriter, r *http.Request) {
+	f := &segment.Template{}
 
 	err := errors.ValidateAndParseJSON(r, f)
 	if err != nil {
@@ -116,14 +118,14 @@ func (fh *FeaturesHandler) UpdateUserFeatures(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = fh.FeaturesRepo.AssignFeatures(r.Context(), []int{f.UserID}, f.AssignFeatures)
+	err = fh.SegmentsRepo.AssignSegments(r.Context(), []int{f.UserID}, f.AssignSegments)
 	if err != nil {
 		fh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = fh.FeaturesRepo.UnassignFeatures(r.Context(), []int{f.UserID}, f.UnassignFeatures)
+	err = fh.SegmentsRepo.UnassignSegments(r.Context(), []int{f.UserID}, f.UnassignSegments)
 	if err != nil {
 		fh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -133,8 +135,8 @@ func (fh *FeaturesHandler) UpdateUserFeatures(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusOK)
 }
 
-func (fh *FeaturesHandler) GetUserFeatures(w http.ResponseWriter, r *http.Request) {
-	receivedUserID := &feature.Template{}
+func (fh *SegmentsHandler) GetUserSegments(w http.ResponseWriter, r *http.Request) {
+	receivedUserID := &segment.Template{}
 
 	err := errors.ValidateAndParseJSON(r, receivedUserID)
 	if err != nil {
@@ -143,14 +145,14 @@ func (fh *FeaturesHandler) GetUserFeatures(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	userFeatures, err := fh.FeaturesRepo.GetUserFeatures(r.Context(), receivedUserID.UserID)
+	userSegments, err := fh.SegmentsRepo.GetUserSegments(r.Context(), receivedUserID.UserID)
 	if err != nil {
 		fh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	resp, err := json.Marshal(userFeatures)
+	resp, err := json.Marshal(userSegments)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -161,6 +163,4 @@ func (fh *FeaturesHandler) GetUserFeatures(w http.ResponseWriter, r *http.Reques
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }

@@ -1,4 +1,4 @@
-module featuretester
+module usersegmentator
 
 go 1.20
 

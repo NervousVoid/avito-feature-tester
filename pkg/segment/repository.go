@@ -1,44 +1,44 @@
-package feature
+package segment
 
 import (
 	"context"
 	"database/sql"
-	"featuretester/pkg/errors"
 	"fmt"
 	"log"
 	"os"
+	"usersegmentator/pkg/errors"
 )
 
 type Repository interface {
-	InsertFeature(ctx context.Context, featureSlug string) error
-	DeleteFeature(ctx context.Context, featureSlug string) error
-	UnassignFeatures(ctx context.Context, userID []int, featuresToUnassign []string) error
-	AssignFeatures(ctx context.Context, userID []int, featuresToAssign []string) error
-	GetUserFeatures(ctx context.Context, userID int) (*Template, error)
-	GetNRandomUsersWithoutFeature(n int, slug string) ([]int, error)
+	InsertSegment(ctx context.Context, segmentSlug string) error
+	DeleteSegment(ctx context.Context, segmentSlug string) error
+	UnassignSegments(ctx context.Context, userID []int, segmentsToUnassign []string) error
+	AssignSegments(ctx context.Context, userID []int, segmentsToAssign []string) error
+	GetUserSegments(ctx context.Context, userID int) (*Template, error)
+	GetNRandomUsersWithoutSegment(n int, slug string) ([]int, error)
 	GetActiveUsersAmount(ctx context.Context) (int, error)
-	GetFeaturesIDs(ctx context.Context, featureSlugs []string) ([]int, error)
+	GetSegmentsIDs(ctx context.Context, segmentSlugs []string) ([]int, error)
 }
 
-type featuresRepository struct {
+type segmentsRepository struct {
 	db      *sql.DB
 	InfoLog *log.Logger
 	ErrLog  *log.Logger
 }
 
-func NewFeaturesRepo(db *sql.DB) Repository {
-	return &featuresRepository{
+func NewSegmentsRepo(db *sql.DB) Repository {
+	return &segmentsRepository{
 		db:      db,
-		InfoLog: log.New(os.Stdout, "INFO\tFEATURES REPO\t", log.Ldate|log.Ltime),
-		ErrLog:  log.New(os.Stdout, "ERROR\tFEATURES REPO\t", log.Ldate|log.Ltime),
+		InfoLog: log.New(os.Stdout, "INFO\tSEGMENTS REPO\t", log.Ldate|log.Ltime),
+		ErrLog:  log.New(os.Stdout, "ERROR\tSEGMENTS REPO\t", log.Ldate|log.Ltime),
 	}
 }
 
-func (fr *featuresRepository) GetFeaturesIDs(ctx context.Context, featureSlugs []string) ([]int, error) {
+func (fr *segmentsRepository) GetSegmentsIDs(ctx context.Context, segmentSlugs []string) ([]int, error) {
 	ids := []int{}
-	for _, f := range featureSlugs {
+	for _, f := range segmentSlugs {
 		var curID int
-		row, err := fr.db.QueryContext(ctx, "SELECT id FROM features WHERE slug = ? LIMIT 1", f)
+		row, err := fr.db.QueryContext(ctx, "SELECT id FROM segments WHERE slug = ? LIMIT 1", f)
 		if err != nil {
 			return []int{}, err
 		}
@@ -58,17 +58,17 @@ func (fr *featuresRepository) GetFeaturesIDs(ctx context.Context, featureSlugs [
 	return ids, nil
 }
 
-func (fr *featuresRepository) GetNRandomUsersWithoutFeature(n int, slug string) ([]int, error) {
+func (fr *segmentsRepository) GetNRandomUsersWithoutSegment(n int, slug string) ([]int, error) {
 	userIDs := []int{}
 
 	rows, err := fr.db.Query(
 		`SELECT DISTINCT u.id FROM users u
 				WHERE (SELECT user_id 
-					   FROM user_feature_relation 
+					   FROM user_segment_relation 
 					   WHERE user_id = u.id 
-					   AND feature_id = 
+					   AND segment_id = 
 							(SELECT id 
-							FROM features 
+							FROM segments 
 							WHERE slug = ? 
 							LIMIT 1) 
 					   AND is_active = TRUE 
@@ -99,7 +99,7 @@ func (fr *featuresRepository) GetNRandomUsersWithoutFeature(n int, slug string) 
 	return userIDs, nil
 }
 
-func (fr *featuresRepository) GetActiveUsersAmount(ctx context.Context) (int, error) {
+func (fr *segmentsRepository) GetActiveUsersAmount(ctx context.Context) (int, error) {
 	var amount int
 
 	row, err := fr.db.QueryContext(ctx, "SELECT COUNT(id) FROM users WHERE is_active = TRUE")
@@ -121,24 +121,28 @@ func (fr *featuresRepository) GetActiveUsersAmount(ctx context.Context) (int, er
 	return amount, nil
 }
 
-func (fr *featuresRepository) InsertFeature(ctx context.Context, featureSlug string) error {
+func (fr *segmentsRepository) InsertSegment(ctx context.Context, segmentSlug string) error {
+	if segmentSlug == "" {
+		return fmt.Errorf("empty segment slug")
+	}
+
 	_, err := fr.db.ExecContext(
 		ctx,
-		"INSERT INTO features (`slug`) VALUES (?) ON DUPLICATE KEY UPDATE is_active = TRUE",
-		featureSlug,
+		"INSERT INTO segments (`slug`) VALUES (?) ON DUPLICATE KEY UPDATE is_active = TRUE",
+		segmentSlug,
 	)
 	if err != nil {
 		return err
 	}
 
-	fr.InfoLog.Printf("InsertFeature — %s\n", featureSlug)
+	fr.InfoLog.Printf("InsertSegment — %s\n", segmentSlug)
 	return nil
 }
 
-func (fr *featuresRepository) DeleteFeature(ctx context.Context, featureSlug string) error {
-	featureID, err := fr.GetFeaturesIDs(ctx, []string{featureSlug})
+func (fr *segmentsRepository) DeleteSegment(ctx context.Context, segmentSlug string) error {
+	segmentID, err := fr.GetSegmentsIDs(ctx, []string{segmentSlug})
 	if err != nil {
-		fr.ErrLog.Printf("%s: %s", errors.ErrorGettingFeatureID, err)
+		fr.ErrLog.Printf("%s: %s", errors.ErrorGettingSegmentID, err)
 		return err
 	}
 
@@ -148,8 +152,9 @@ func (fr *featuresRepository) DeleteFeature(ctx context.Context, featureSlug str
 		return err
 	}
 
-	_, err = tx.ExecContext(ctx, "UPDATE features SET is_active = FALSE WHERE id = ?", featureID[0])
+	_, err = tx.ExecContext(ctx, "UPDATE segments SET is_active = FALSE WHERE id = ?", segmentID[0])
 	if err != nil {
+		fmt.Println(2312)
 		if rbErr := tx.Rollback(); rbErr != nil {
 			return fmt.Errorf("transaction error: %w, rollback error: %s", err, rbErr)
 		}
@@ -158,10 +163,10 @@ func (fr *featuresRepository) DeleteFeature(ctx context.Context, featureSlug str
 
 	_, err = tx.ExecContext(
 		ctx,
-		"UPDATE user_feature_relation "+
+		"UPDATE user_segment_relation "+
 			"SET is_active = FALSE, date_unassigned = CURRENT_TIMESTAMP "+
-			"WHERE feature_id = ?",
-		featureID,
+			"WHERE segment_id = ?",
+		segmentID[0],
 	)
 	if err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {
@@ -176,16 +181,16 @@ func (fr *featuresRepository) DeleteFeature(ctx context.Context, featureSlug str
 		return err
 	}
 
-	fr.InfoLog.Printf("DeleteFeature — %s\n", featureSlug)
+	fr.InfoLog.Printf("DeleteSegment — %s\n", segmentSlug)
 	return nil
 }
 
-func (fr *featuresRepository) UnassignFeatures(ctx context.Context, userID []int, featuresToUnassign []string) error {
-	if len(featuresToUnassign) == 0 {
+func (fr *segmentsRepository) UnassignSegments(ctx context.Context, userID []int, segmentsToUnassign []string) error {
+	if len(segmentsToUnassign) == 0 {
 		return nil
 	}
 
-	ids, err := fr.GetFeaturesIDs(ctx, featuresToUnassign)
+	ids, err := fr.GetSegmentsIDs(ctx, segmentsToUnassign)
 	if err != nil {
 		return err
 	}
@@ -200,9 +205,9 @@ func (fr *featuresRepository) UnassignFeatures(ctx context.Context, userID []int
 		for _, id := range ids {
 			_, err = tx.ExecContext(
 				ctx,
-				"UPDATE user_feature_relation "+
+				"UPDATE user_segment_relation "+
 					"SET is_active = FALSE, date_unassigned = CURRENT_TIMESTAMP "+
-					"WHERE user_id = ? AND feature_id = ? AND is_active = TRUE",
+					"WHERE user_id = ? AND segment_id = ? AND is_active = TRUE",
 				usr,
 				id,
 			)
@@ -222,16 +227,16 @@ func (fr *featuresRepository) UnassignFeatures(ctx context.Context, userID []int
 		return err
 	}
 
-	fr.InfoLog.Printf("UnassignFeatures — %d\n", userID)
+	fr.InfoLog.Printf("UnassignSegments — %d\n", userID)
 	return nil
 }
 
-func (fr *featuresRepository) AssignFeatures(ctx context.Context, userID []int, featuresToAssign []string) error {
-	if len(featuresToAssign) == 0 {
+func (fr *segmentsRepository) AssignSegments(ctx context.Context, userID []int, segmentsToAssign []string) error {
+	if len(segmentsToAssign) == 0 {
 		return nil
 	}
 
-	ids, err := fr.GetFeaturesIDs(ctx, featuresToAssign)
+	ids, err := fr.GetSegmentsIDs(ctx, segmentsToAssign)
 	if err != nil {
 		return err
 	}
@@ -243,13 +248,13 @@ func (fr *featuresRepository) AssignFeatures(ctx context.Context, userID []int, 
 	}
 
 	for _, usr := range userID {
-		for _, featureID := range ids {
+		for _, segmentID := range ids {
 			var rows *sql.Rows
 			rows, err = tx.QueryContext(
 				ctx,
-				"SELECT id FROM user_feature_relation WHERE is_active = TRUE AND user_id = ? AND feature_id = ?",
+				"SELECT id FROM user_segment_relation WHERE is_active = TRUE AND user_id = ? AND segment_id = ?",
 				usr,
-				featureID,
+				segmentID,
 			)
 
 			if err != nil {
@@ -272,9 +277,9 @@ func (fr *featuresRepository) AssignFeatures(ctx context.Context, userID []int, 
 
 			_, err = tx.ExecContext(
 				ctx,
-				"INSERT INTO user_feature_relation (`user_id`, `feature_id`) VALUES (?, ?)",
+				"INSERT INTO user_segment_relation (`user_id`, `segment_id`) VALUES (?, ?)",
 				usr,
-				featureID,
+				segmentID,
 			)
 
 			if err != nil {
@@ -292,16 +297,16 @@ func (fr *featuresRepository) AssignFeatures(ctx context.Context, userID []int, 
 		return err
 	}
 
-	fr.InfoLog.Printf("AssignFeatures — %d\n", userID)
+	fr.InfoLog.Printf("AssignSegments — %d\n", userID)
 	return nil
 }
 
-func (fr *featuresRepository) GetUserFeatures(ctx context.Context, userID int) (*Template, error) {
+func (fr *segmentsRepository) GetUserSegments(ctx context.Context, userID int) (*Template, error) {
 	rows, err := fr.db.QueryContext(
 		ctx,
-		"SELECT slug FROM features "+
+		"SELECT slug FROM segments "+
 			"WHERE id IN ("+
-			"SELECT feature_id FROM user_feature_relation "+
+			"SELECT segment_id FROM user_segment_relation "+
 			"WHERE user_id = ? AND is_active = TRUE"+
 			") AND is_active = TRUE",
 		userID,
@@ -310,24 +315,24 @@ func (fr *featuresRepository) GetUserFeatures(ctx context.Context, userID int) (
 		return nil, err
 	}
 
-	userFeatures := &Template{
+	userSegments := &Template{
 		UserID:   userID,
-		Features: []string{},
+		Segments: []string{},
 	}
 
 	for rows.Next() {
-		var feature string
-		err = rows.Scan(&feature)
+		var segment string
+		err = rows.Scan(&segment)
 		if err != nil {
 			return nil, err
 		}
-		userFeatures.Features = append(userFeatures.Features, feature)
+		userSegments.Segments = append(userSegments.Segments, segment)
 	}
 	err = rows.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	fr.InfoLog.Printf("GetFeatures — %d\n", userID)
-	return userFeatures, nil
+	fr.InfoLog.Printf("GetSegments — %d\n", userID)
+	return userSegments, nil
 }

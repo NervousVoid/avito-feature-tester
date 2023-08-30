@@ -3,11 +3,11 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
-	"featuretester/pkg/errors"
-	"featuretester/pkg/history"
 	"log"
 	"net/http"
 	"os"
+	"usersegmentator/pkg/errors"
+	"usersegmentator/pkg/history"
 )
 
 type HistoryHandler struct {
@@ -24,7 +24,7 @@ func NewHistoryHandler(db *sql.DB) *HistoryHandler {
 	}
 }
 
-func (rh *HistoryHandler) GetFeatureHistory(w http.ResponseWriter, r *http.Request) {
+func (rh *HistoryHandler) GetSegmentHistory(w http.ResponseWriter, r *http.Request) {
 	receivedRequest := &history.Request{}
 
 	err := errors.ValidateAndParseJSON(r, receivedRequest)
@@ -72,6 +72,4 @@ func (rh *HistoryHandler) GetFeatureHistory(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }

@@ -1,1 +1,1 @@
-# avito-feature-tester
+# avito-segment-tester

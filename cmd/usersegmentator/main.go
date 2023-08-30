@@ -2,10 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"featuretester/pkg/handlers"
 	"log"
 	"net/http"
 	"os"
+	"usersegmentator/pkg/handlers"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
@@ -17,7 +17,7 @@ func main() {
 	infoLog := log.New(os.Stdout, "INFO\tMAIN\t", log.Ldate|log.Ltime)
 	errLog := log.New(os.Stderr, "ERROR\tMAIN\t", log.Ldate|log.Ltime)
 
-	dsn := "root:avito@tcp(localhost:3306)/featuretest?"
+	dsn := "root:avito@tcp(localhost:3306)/usersegmentator?"
 	dsn += "&charset=utf8"
 	dsn += "&multiStatements=true"
 	dsn += "&interpolateParams=true"
@@ -40,16 +40,16 @@ func main() {
 		errLog.Printf("Couldn't connect to the database: %s\n", err)
 	}
 
-	featureHandler := handlers.NewFeaturesHandler(db)
+	segmentHandler := handlers.NewSegmentsHandler(db)
 	reportHandler := handlers.NewHistoryHandler(db)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/api/create", featureHandler.AddFeature).Methods("POST")
-	r.HandleFunc("/api/delete", featureHandler.DeleteFeature).Methods("DELETE")
-	r.HandleFunc("/api/update_user_features", featureHandler.UpdateUserFeatures).Methods("POST")
-	r.HandleFunc("/api/get_user_features", featureHandler.GetUserFeatures).Methods("GET")
-	r.HandleFunc("/api/get_user_history", reportHandler.GetFeatureHistory).Methods("GET")
-	r.HandleFunc("/api/auto_assign_feature", featureHandler.AutoAssignFeature).Methods("POST")
+	r.HandleFunc("/api/create_segment", segmentHandler.AddSegment).Methods("POST")
+	r.HandleFunc("/api/delete_segment", segmentHandler.DeleteSegment).Methods("DELETE")
+	r.HandleFunc("/api/update_user_segments", segmentHandler.UpdateUserSegments).Methods("POST")
+	r.HandleFunc("/api/get_user_segments", segmentHandler.GetUserSegments).Methods("GET")
+	r.HandleFunc("/api/get_user_history", reportHandler.GetSegmentHistory).Methods("GET")
+	r.HandleFunc("/api/auto_assign_segments", segmentHandler.AutoAssignSegment).Methods("POST")
 
 	r.PathPrefix("/reports/").Handler(
 		http.StripPrefix("/reports/",

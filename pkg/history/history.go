@@ -23,7 +23,7 @@ type DatesRange struct {
 
 type ReportRow struct {
 	UserID    int
-	Feature   string
+	Segment   string
 	Operation string
 	Date      string
 }
