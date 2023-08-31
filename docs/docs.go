@@ -19,49 +19,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/auto_assign_segments": {
-            "post": {
-                "description": "automatically add users to segment",
-                "consumes": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Segments"
-                ],
-                "summary": "automatically add users to segment",
-                "parameters": [
-                    {
-                        "description": "The input struct",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/segment.RequestAutoAssignSegment"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "assigned",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "bad input",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "something went wrong",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/api/create_segment": {
             "post": {
                 "description": "creates new segment",
@@ -74,7 +31,7 @@ const docTemplate = `{
                 "summary": "creates new segment",
                 "parameters": [
                     {
-                        "description": "The input struct",
+                        "description": "fraction — optional",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -288,7 +245,7 @@ const docTemplate = `{
         "history.ReportResponse": {
             "type": "object",
             "properties": {
-                "csv_url s": {
+                "csv_url": {
                     "type": "string"
                 }
             }
@@ -307,20 +264,12 @@ const docTemplate = `{
                 }
             }
         },
-        "segment.RequestAutoAssignSegment": {
+        "segment.RequestSegmentSlug": {
             "type": "object",
             "properties": {
                 "fraction": {
                     "type": "integer"
                 },
-                "segment_slug": {
-                    "type": "string"
-                }
-            }
-        },
-        "segment.RequestSegmentSlug": {
-            "type": "object",
-            "properties": {
                 "segment_slug": {
                     "type": "string"
                 }

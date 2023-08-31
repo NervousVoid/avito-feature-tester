@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
-	"math"
 	"net/http"
 	"os"
 	"usersegmentator/pkg/errors"
@@ -25,65 +24,13 @@ func NewSegmentsHandler(db *sql.DB) *SegmentsHandler {
 	}
 }
 
-// AutoAssignSegment godoc
-//
-//	@Summary		automatically add users to segment
-//	@Description	automatically add users to segment
-//	@Tags         	Segments
-//	@Accept			json
-//	@Param 			request 		body 	segment.RequestAutoAssignSegment true "The input struct"
-//	@Success		200	{string} string "assigned"
-//	@Failure		400	{string} string "bad input"
-//	@Failure		500	{string} string "something went wrong"
-//	@Router			/api/auto_assign_segments [post]
-func (fh *SegmentsHandler) AutoAssignSegment(w http.ResponseWriter, r *http.Request) {
-	f := &segment.Template{}
-
-	err := errors.ValidateAndParseJSON(r, f)
-	if err != nil {
-		fh.ErrLog.Printf("%s", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if f.Fraction < 1 || f.Fraction > 100 {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	activeUsers, err := fh.SegmentsRepo.GetActiveUsersAmount(r.Context())
-	if err != nil {
-		fh.ErrLog.Printf("%s", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	sampleSize := int(math.Ceil(float64(activeUsers) * (float64(f.Fraction) / 100))) //nolint:gomnd // creating percents
-
-	users, err := fh.SegmentsRepo.GetNRandomUsersWithoutSegment(sampleSize, f.SegmentSlug)
-	if err != nil {
-		fh.ErrLog.Printf("%s", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	err = fh.SegmentsRepo.AssignSegments(r.Context(), users, []string{f.SegmentSlug})
-	if err != nil {
-		fh.ErrLog.Printf("%s", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
 // AddSegment godoc
 //
 //	@Summary		creates new segment
 //	@Description	creates new segment
 //	@Tags         	Segments
 //	@Accept			json
-//	@Param 			request		body 	segment.RequestSegmentSlug true "The input struct"
+//	@Param 			request		body 	segment.RequestSegmentSlug true "fraction — optional"
 //	@Success		201	{string} string "created"
 //	@Failure		400	{string} string "bad input"
 //	@Failure		500	{string} string "something went wrong"
@@ -103,6 +50,14 @@ func (fh *SegmentsHandler) AddSegment(w http.ResponseWriter, r *http.Request) {
 		fh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	}
+
+	if f.Fraction != 0 {
+		err = fh.SegmentsRepo.AutoAssignSegment(r.Context(), f.Fraction, f.SegmentSlug)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusCreated)

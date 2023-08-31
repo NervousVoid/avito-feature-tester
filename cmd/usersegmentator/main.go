@@ -68,7 +68,6 @@ func main() {
 	r.HandleFunc("/api/update_user_segments", segmentHandler.UpdateUserSegments).Methods("POST")
 	r.HandleFunc("/api/get_user_segments", segmentHandler.GetUserSegments).Methods("GET")
 	r.HandleFunc("/api/get_user_history", reportHandler.GetUserHistory).Methods("GET")
-	r.HandleFunc("/api/auto_assign_segment", segmentHandler.AutoAssignSegment).Methods("POST")
 
 	r.PathPrefix("/reports/").Handler(
 		http.StripPrefix("/reports/",
