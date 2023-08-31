@@ -79,7 +79,19 @@ func (rr *historyRepository) ParseAndValidateDates(dateStart, dateEnd string) (*
 		rr.ErrLog.Printf("Error validating date: %s", err)
 		return nil, err
 	}
+
+	// 25.08 -> 25.09 -> 01.09
 	dates.EndDate = dates.EndDate.AddDate(0, 1, 0)
+	dates.EndDate = time.Date(
+		dates.EndDate.Year(),
+		dates.EndDate.Month(),
+		1,
+		0,
+		0,
+		0,
+		0,
+		time.UTC,
+	)
 	return dates, nil
 }
 
