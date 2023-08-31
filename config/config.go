@@ -20,7 +20,6 @@ type UserSegmentator struct {
 
 type MySQL struct {
 	Name           string `env-required:"true"  env:"MYSQL_DATABASE"`
-	User           string `env-required:"true"  env:"MYSQL_USER"`
 	Password       string `env-required:"true"  env:"MYSQL_ROOT_PASSWORD"`
 	MaxConnections int    `yaml:"maxConns"`
 	Host           string `yaml:"host"`

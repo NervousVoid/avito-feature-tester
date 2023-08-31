@@ -34,8 +34,7 @@ func main() {
 	}
 
 	dsn := fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s?",
-		cfg.User,
+		"root:%s@tcp(%s:%s)/%s?",
 		cfg.Password,
 		cfg.MySQL.Host,
 		cfg.MySQL.Port,
@@ -78,7 +77,7 @@ func main() {
 
 	r.PathPrefix("/reports/").Handler(
 		http.StripPrefix("/reports/",
-			http.FileServer(http.Dir(cfg.StorageDir))))
+			http.FileServer(http.Dir("./"+cfg.StorageDir))))
 
 	infoLog.Printf("starting server at %s:%s", cfg.HTTP.Host, cfg.HTTP.Port)
 
