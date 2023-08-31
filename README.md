@@ -7,7 +7,13 @@
 
 ### Запуск
 ```shell
-docker-compose up
+  docker-compose up
+```
+#### Запуск, если в прошлый раз что-то пошло не по плану
+```shell
+  docker rm $(docker ps -a -q) && docker volume prune -f
+  docker rmi -f avito-segmentator
+  docker-compose up
 ```
 После успешного запуска контейнеров, в базе данных будут созданы 1000 пользователей, а таблицы сегментов и связи сегментов с пользователями будут пустыми
 

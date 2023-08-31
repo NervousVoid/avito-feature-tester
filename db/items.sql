@@ -37,6 +37,7 @@ CREATE TABLE `user_segment_relation` (
 # (1004),
 # (1005);
 
+# Auto users creation
 DELIMITER //
 CREATE PROCEDURE AutoInsertValuesToTable()
     BEGIN
