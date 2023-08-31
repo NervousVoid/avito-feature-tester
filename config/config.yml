@@ -10,7 +10,7 @@ mysql:
   host: 'mysql'
   max_cons: 50
   port: '3306'
-  conn_timeout: 5
+  conn_timeout: 10
 
 report:
   file_prefix: 'report_'

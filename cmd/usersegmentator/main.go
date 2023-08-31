@@ -59,11 +59,6 @@ func main() {
 	}(db)
 	db.SetMaxOpenConns(cfg.MaxConnections)
 
-	err = db.Ping()
-	if err != nil {
-		errLog.Printf("Couldn't connect to the database: %s\n", err)
-	}
-
 	segmentHandler := handlers.NewSegmentsHandler(db)
 	reportHandler := handlers.NewHistoryHandler(db, cfg)
 

@@ -43,8 +43,8 @@ docker-compose up
 ```json
 {
   "user_id": 1234,
-  "assign_features": ["AVITO_DISCOUNT_30"],
-  "unassign_features": [
+  "assign_segments": ["AVITO_DISCOUNT_30"],
+  "unassign_segments": [
     "AVITO_DISCOUNT_50",
     "AVITO_VOICE_MESSAGES"
   ]
@@ -95,7 +95,7 @@ docker-compose up
 *Принимаемая структура*
 ```json
 {
-  "feature_slug": "AVITO_DISCOUNT_30",
+  "segment_slug": "AVITO_DISCOUNT_30",
   "fraction": 10
 }
 ```
