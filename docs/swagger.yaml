@@ -1,7 +1,7 @@
 definitions:
   history.ReportResponse:
     properties:
-      csv_url s:
+      csv_url:
         type: string
     type: object
   history.Request:
@@ -13,15 +13,10 @@ definitions:
       user_id:
         type: integer
     type: object
-  segment.RequestAutoAssignSegment:
+  segment.RequestSegmentSlug:
     properties:
       fraction:
         type: integer
-      segment_slug:
-        type: string
-    type: object
-  segment.RequestSegmentSlug:
-    properties:
       segment_slug:
         type: string
     type: object
@@ -61,41 +56,13 @@ info:
   title: Dynamic User Segmentation Service API
   version: "1.0"
 paths:
-  /api/auto_assign_segments:
-    post:
-      consumes:
-      - application/json
-      description: automatically add users to segment
-      parameters:
-      - description: The input struct
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/segment.RequestAutoAssignSegment'
-      responses:
-        "200":
-          description: assigned
-          schema:
-            type: string
-        "400":
-          description: bad input
-          schema:
-            type: string
-        "500":
-          description: something went wrong
-          schema:
-            type: string
-      summary: automatically add users to segment
-      tags:
-      - Segments
   /api/create_segment:
     post:
       consumes:
       - application/json
       description: creates new segment
       parameters:
-      - description: The input struct
+      - description: fraction — optional
         in: body
         name: request
         required: true

@@ -15,17 +15,13 @@ type RequestUserID struct {
 
 type RequestSegmentSlug struct {
 	SegmentSlug string `json:"segment_slug"`
+	Fraction    int    `json:"fraction"`
 }
 
 type RequestUpdateSegments struct {
 	UserID           int      `json:"user_id"`
 	AssignSegments   []string `json:"assign_segments"`
 	UnassignSegments []string `json:"unassign_segments"`
-}
-
-type RequestAutoAssignSegment struct {
-	SegmentSlug string `json:"segment_slug"`
-	Fraction    int    `json:"fraction"`
 }
 
 type UserSegments struct {

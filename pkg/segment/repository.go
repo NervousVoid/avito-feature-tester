@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"usersegmentator/pkg/errors"
 )
@@ -18,6 +19,7 @@ type Repository interface {
 	GetNRandomUsersWithoutSegment(n int, slug string) ([]int, error)
 	GetActiveUsersAmount(ctx context.Context) (int, error)
 	GetSegmentsIDs(ctx context.Context, segmentSlugs []string) ([]int, error)
+	AutoAssignSegment(ctx context.Context, fraction int, slug string) error
 }
 
 type segmentsRepository struct {
@@ -32,6 +34,35 @@ func NewSegmentsRepo(db *sql.DB) Repository {
 		InfoLog: log.New(os.Stdout, "INFO\tSEGMENTS REPO\t", log.Ldate|log.Ltime),
 		ErrLog:  log.New(os.Stdout, "ERROR\tSEGMENTS REPO\t", log.Ldate|log.Ltime),
 	}
+}
+
+func (fr *segmentsRepository) AutoAssignSegment(ctx context.Context, fraction int, slug string) error {
+	if fraction < 1 || fraction > 100 {
+		fr.ErrLog.Printf("invalid fraction value: %d", fraction)
+		return fmt.Errorf("invalid fraction value: %d", fraction)
+	}
+
+	activeUsers, err := fr.GetActiveUsersAmount(ctx)
+	if err != nil {
+		fr.ErrLog.Printf("%s", err)
+		return err
+	}
+
+	sampleSize := int(math.Ceil(float64(activeUsers) * (float64(fraction) / 100))) //nolint:gomnd // creating percents
+
+	users, err := fr.GetNRandomUsersWithoutSegment(sampleSize, slug)
+	if err != nil {
+		fr.ErrLog.Printf("%s", err)
+		return err
+	}
+
+	err = fr.AssignSegments(ctx, users, []string{slug})
+	if err != nil {
+		fr.ErrLog.Printf("%s", err)
+		return err
+	}
+
+	return nil
 }
 
 func (fr *segmentsRepository) GetSegmentsIDs(ctx context.Context, segmentSlugs []string) ([]int, error) {
