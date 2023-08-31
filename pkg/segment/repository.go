@@ -44,15 +44,14 @@ func (fr *segmentsRepository) GetSegmentsIDs(ctx context.Context, segmentSlugs [
 		}
 		row.Next()
 		err = row.Scan(&curID)
-		//if err != nil {
-		//	fmt.Println("12312")
-		//	return []int{}, err
-		//}
+		if err != nil {
+			return []int{}, err
+		}
 
 		err = row.Close()
-		//if err != nil {
-		//	return []int{}, err
-		//}
+		if err != nil {
+			return []int{}, err
+		}
 
 		ids = append(ids, curID)
 	}
