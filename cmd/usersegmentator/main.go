@@ -15,11 +15,9 @@ import (
 //	@version		1.0
 //	@description	Avito Tech backend trainee assignment 2023
 
-//	@contact.name	Peter Androsov
-//	@contact.url	http://t.me/nervous_void
-//	@contact.email	androsov.p.v@gmail.com
-//	@BasePath	/api/
-
+// @contact.name	Peter Androsov
+// @contact.url	http://t.me/nervous_void
+// @contact.email	androsov.p.v@gmail.com
 const maxDBConnections = 50
 
 func main() {

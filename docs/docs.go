@@ -25,6 +25,9 @@ const docTemplate = `{
                 "consumes": [
                     "application/json"
                 ],
+                "tags": [
+                    "Segments"
+                ],
                 "summary": "automatically add users to segment",
                 "parameters": [
                     {
@@ -64,6 +67,9 @@ const docTemplate = `{
                 "description": "creates new segment",
                 "consumes": [
                     "application/json"
+                ],
+                "tags": [
+                    "Segments"
                 ],
                 "summary": "creates new segment",
                 "parameters": [
@@ -105,6 +111,9 @@ const docTemplate = `{
                 "consumes": [
                     "application/json"
                 ],
+                "tags": [
+                    "Segments"
+                ],
                 "summary": "deletes existing segment",
                 "parameters": [
                     {
@@ -141,14 +150,17 @@ const docTemplate = `{
         },
         "/api/get_user_history": {
             "get": {
-                "description": "receive report on user segments assignments within the given dates",
+                "description": "receive report on user segments assignments and unassignments within the given dates",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "receive report on user segments assignments",
+                "tags": [
+                    "History"
+                ],
+                "summary": "receive report on user segments assignments and unassignments",
                 "parameters": [
                     {
                         "description": "The input struct",
@@ -191,6 +203,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "Segments"
+                ],
                 "summary": "receive segments assigned to user",
                 "parameters": [
                     {
@@ -230,6 +245,9 @@ const docTemplate = `{
                 "description": "assign and unassign segments from user",
                 "consumes": [
                     "application/json"
+                ],
+                "tags": [
+                    "Segments"
                 ],
                 "summary": "assign and unassign segments from user",
                 "parameters": [
@@ -357,7 +375,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "",
-	BasePath:         "/api/",
+	BasePath:         "",
 	Schemes:          []string{},
 	Title:            "Dynamic User Segmentation Service API",
 	Description:      "Avito Tech backend trainee assignment 2023",

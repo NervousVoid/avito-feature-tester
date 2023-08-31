@@ -10,13 +10,15 @@
         },
         "version": "1.0"
     },
-    "basePath": "/api/",
     "paths": {
         "/api/auto_assign_segments": {
             "post": {
                 "description": "automatically add users to segment",
                 "consumes": [
                     "application/json"
+                ],
+                "tags": [
+                    "Segments"
                 ],
                 "summary": "automatically add users to segment",
                 "parameters": [
@@ -58,6 +60,9 @@
                 "consumes": [
                     "application/json"
                 ],
+                "tags": [
+                    "Segments"
+                ],
                 "summary": "creates new segment",
                 "parameters": [
                     {
@@ -98,6 +103,9 @@
                 "consumes": [
                     "application/json"
                 ],
+                "tags": [
+                    "Segments"
+                ],
                 "summary": "deletes existing segment",
                 "parameters": [
                     {
@@ -134,14 +142,17 @@
         },
         "/api/get_user_history": {
             "get": {
-                "description": "receive report on user segments assignments within the given dates",
+                "description": "receive report on user segments assignments and unassignments within the given dates",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "receive report on user segments assignments",
+                "tags": [
+                    "History"
+                ],
+                "summary": "receive report on user segments assignments and unassignments",
                 "parameters": [
                     {
                         "description": "The input struct",
@@ -184,6 +195,9 @@
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "Segments"
+                ],
                 "summary": "receive segments assigned to user",
                 "parameters": [
                     {
@@ -223,6 +237,9 @@
                 "description": "assign and unassign segments from user",
                 "consumes": [
                     "application/json"
+                ],
+                "tags": [
+                    "Segments"
                 ],
                 "summary": "assign and unassign segments from user",
                 "parameters": [

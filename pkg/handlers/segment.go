@@ -30,6 +30,7 @@ func NewSegmentsHandler(db *sql.DB) *SegmentsHandler {
 //
 //	@Summary		automatically add users to segment
 //	@Description	automatically add users to segment
+//	@Tags         	Segments
 //	@Accept			json
 //	@Param 			request 		body 	segment.RequestAutoAssignSegment true "The input struct"
 //	@Success		200	{string} string "assigned"
@@ -81,6 +82,7 @@ func (fh *SegmentsHandler) AutoAssignSegment(w http.ResponseWriter, r *http.Requ
 //
 //	@Summary		creates new segment
 //	@Description	creates new segment
+//	@Tags         	Segments
 //	@Accept			json
 //	@Param 			request		body 	segment.RequestSegmentSlug true "The input struct"
 //	@Success		201	{string} string "created"
@@ -111,6 +113,7 @@ func (fh *SegmentsHandler) AddSegment(w http.ResponseWriter, r *http.Request) {
 //
 //	@Summary		deletes existing segment
 //	@Description	deletes existing segment
+//	@Tags         	Segments
 //	@Accept			json
 //	@Param 			request		body 	segment.RequestSegmentSlug true "The input struct"
 //	@Success		200	{string} string "deleted"
@@ -142,6 +145,7 @@ func (fh *SegmentsHandler) DeleteSegment(w http.ResponseWriter, r *http.Request)
 //
 //	@Summary		assign and unassign segments from user
 //	@Description	assign and unassign segments from user
+//	@Tags         	Segments
 //	@Accept			json
 //	@Param 			request		body 	segment.RequestUpdateSegments true "The input struct"
 //	@Success		200	{string} string "assigned and unassigned"
@@ -179,6 +183,7 @@ func (fh *SegmentsHandler) UpdateUserSegments(w http.ResponseWriter, r *http.Req
 //
 //	@Summary		receive segments assigned to user
 //	@Description	receive segments assigned to user
+//	@Tags         	Segments
 //	@Accept			json
 //	@Produce		json
 //	@Param 			request		body 	segment.RequestUserID true "The input struct"

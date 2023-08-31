@@ -26,8 +26,9 @@ func NewHistoryHandler(db *sql.DB) *HistoryHandler {
 
 // GetUserHistory godoc
 //
-//	@Summary		receive report on user segments assignments
-//	@Description	receive report on user segments assignments within the given dates
+//	@Summary		receive report on user segments assignments and unassignments
+//	@Description	receive report on user segments assignments and unassignments within the given dates
+//	@Tags         	History
 //	@Accept			json
 //	@Produce		json
 //	@Param 			request		body 	history.Request true "The input struct"
