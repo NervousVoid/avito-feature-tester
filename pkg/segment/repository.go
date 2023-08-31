@@ -154,7 +154,6 @@ func (fr *segmentsRepository) DeleteSegment(ctx context.Context, segmentSlug str
 
 	_, err = tx.ExecContext(ctx, "UPDATE segments SET is_active = FALSE WHERE id = ?", segmentID[0])
 	if err != nil {
-		fmt.Println(2312)
 		if rbErr := tx.Rollback(); rbErr != nil {
 			return fmt.Errorf("transaction error: %w, rollback error: %s", err, rbErr)
 		}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"time"
+	"usersegmentator/config"
 )
 
 type Repository interface {
@@ -19,13 +20,15 @@ type Repository interface {
 
 type historyRepository struct {
 	db      *sql.DB
+	cfg     *config.Config
 	InfoLog *log.Logger
 	ErrLog  *log.Logger
 }
 
-func NewHistoryRepo(db *sql.DB) Repository {
+func NewHistoryRepo(db *sql.DB, cfg *config.Config) Repository {
 	return &historyRepository{
 		db:      db,
+		cfg:     cfg,
 		InfoLog: log.New(os.Stdout, "INFO\tREPORT REPO\t", log.Ldate|log.Ltime),
 		ErrLog:  log.New(os.Stdout, "ERROR\tREPORT REPO\t", log.Ldate|log.Ltime),
 	}
@@ -149,8 +152,9 @@ func (rr *historyRepository) CreateCSV(history []ReportRow) (string, error) {
 		randStr[i] = alpa[r.Intn(len(alpa))]
 	}
 
-	fileName := "report_" + string(randStr) + ".csv"
-	filePath := "static/reports/" + fileName
+	fileName := rr.cfg.Report.FilePrefix + string(randStr) + rr.cfg.Report.FileExt
+	filePath := rr.cfg.StorageDir + fileName
+
 	file, err := os.Create(filePath)
 	if err != nil {
 		rr.ErrLog.Println(err.Error())
@@ -169,6 +173,6 @@ func (rr *historyRepository) CreateCSV(history []ReportRow) (string, error) {
 		return "", nil
 	}
 
-	fileURL := fmt.Sprintf("localhost:8000/reports/%s", fileName) // Replace with your domain and file path
+	fileURL := fmt.Sprintf("%s:%s/reports/%s", rr.cfg.HTTP.Host, rr.cfg.HTTP.Port, fileName)
 	return fileURL, nil
 }

@@ -2,9 +2,13 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
+	"usersegmentator/config"
+	"usersegmentator/pkg/errors"
 	"usersegmentator/pkg/handlers"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -18,29 +22,43 @@ import (
 // @contact.name	Peter Androsov
 // @contact.url	http://t.me/nervous_void
 // @contact.email	androsov.p.v@gmail.com
-const maxDBConnections = 50
 
 func main() {
 	infoLog := log.New(os.Stdout, "INFO\tMAIN\t", log.Ldate|log.Ltime)
 	errLog := log.New(os.Stderr, "ERROR\tMAIN\t", log.Ldate|log.Ltime)
 
-	dsn := "root:avito@tcp(localhost:3306)/usersegmentator?"
+	cfg, err := config.NewConfig()
+	if err != nil {
+		errLog.Printf("Error reading config: %s", err)
+		return
+	}
+
+	dsn := fmt.Sprintf(
+		"%s:%s@tcp(%s:%s)/%s?",
+		cfg.User,
+		cfg.Password,
+		cfg.MySQL.Host,
+		cfg.MySQL.Port,
+		cfg.MySQL.Name,
+	)
 	dsn += "&charset=utf8"
 	dsn += "&multiStatements=true"
 	dsn += "&interpolateParams=true"
 	dsn += "&parseTime=true"
 
-	db, err := sql.Open("mysql", dsn)
+	db, err := errors.DBConnectLoop(dsn, time.Duration(cfg.Timeout*1e9)) //nolint:gomnd // converting nanosecs to secs
 	if err != nil {
 		errLog.Printf("Couldn't start database driver: %s\n", err)
+		return
 	}
+
 	defer func(db *sql.DB) {
 		err = db.Close()
 		if err != nil {
 			errLog.Printf("Error closing database connection: %s\n", err)
 		}
 	}(db)
-	db.SetMaxOpenConns(maxDBConnections)
+	db.SetMaxOpenConns(cfg.MaxConnections)
 
 	err = db.Ping()
 	if err != nil {
@@ -48,7 +66,7 @@ func main() {
 	}
 
 	segmentHandler := handlers.NewSegmentsHandler(db)
-	reportHandler := handlers.NewHistoryHandler(db)
+	reportHandler := handlers.NewHistoryHandler(db, cfg)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/api/create_segment", segmentHandler.AddSegment).Methods("POST")
@@ -60,11 +78,11 @@ func main() {
 
 	r.PathPrefix("/reports/").Handler(
 		http.StripPrefix("/reports/",
-			http.FileServer(http.Dir("./static/reports"))))
+			http.FileServer(http.Dir(cfg.StorageDir))))
 
-	infoLog.Println("starting server at :8000")
+	infoLog.Printf("starting server at %s:%s", cfg.HTTP.Host, cfg.HTTP.Port)
 
-	err = http.ListenAndServe("localhost:8000", r)
+	err = http.ListenAndServe(cfg.HTTP.Host+":"+cfg.HTTP.Port, r)
 	if err != nil {
 		errLog.Printf("listen and serve: %s\n", err)
 	}

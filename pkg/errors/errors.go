@@ -1,9 +1,12 @@
 package errors
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 const (
@@ -13,6 +16,26 @@ const (
 	ErrorGettingSegmentID      = "error getting segment id"
 	ErrorCommittingTransaction = "error committing transaction"
 )
+
+func DBConnectLoop(dsn string, timeout time.Duration) (*sql.DB, error) {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	timeoutExceeded := time.After(timeout)
+	for {
+		select {
+		case <-timeoutExceeded:
+			return nil, fmt.Errorf("db connection failed after %s timeout", timeout)
+
+		case <-ticker.C:
+			db, err := sql.Open("mysql", dsn)
+			if err == nil {
+				return db, nil
+			}
+			return nil, fmt.Errorf("%s: failed to connect to db %w", dsn, err)
+		}
+	}
+}
 
 func ValidateAndParseJSON(r *http.Request, parseInto interface{}) error {
 	var body []byte

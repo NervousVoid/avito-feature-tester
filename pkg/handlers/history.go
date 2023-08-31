@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"usersegmentator/config"
 	"usersegmentator/pkg/errors"
 	"usersegmentator/pkg/history"
 )
@@ -16,9 +17,9 @@ type HistoryHandler struct {
 	ErrLog      *log.Logger
 }
 
-func NewHistoryHandler(db *sql.DB) *HistoryHandler {
+func NewHistoryHandler(db *sql.DB, cfg *config.Config) *HistoryHandler {
 	return &HistoryHandler{
-		HistoryRepo: history.NewHistoryRepo(db),
+		HistoryRepo: history.NewHistoryRepo(db, cfg),
 		InfoLog:     log.New(os.Stdout, "INFO\tHistory HANDLER\t", log.Ldate|log.Ltime),
 		ErrLog:      log.New(os.Stdout, "ERROR\tHistory HANDLER\t", log.Ldate|log.Ltime),
 	}

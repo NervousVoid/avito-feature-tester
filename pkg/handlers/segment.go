@@ -3,7 +3,6 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"math"
 	"net/http"
@@ -131,7 +130,6 @@ func (fh *SegmentsHandler) DeleteSegment(w http.ResponseWriter, r *http.Request)
 	}
 
 	err = fh.SegmentsRepo.DeleteSegment(r.Context(), f.SegmentSlug)
-	fmt.Println(f.SegmentSlug)
 	if err != nil {
 		fh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)

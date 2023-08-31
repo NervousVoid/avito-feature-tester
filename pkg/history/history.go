@@ -29,5 +29,5 @@ type ReportRow struct {
 }
 
 type ReportResponse struct {
-	CsvURL string `json:"csv_url s"`
+	CsvURL string `json:"csv_url"`
 }
