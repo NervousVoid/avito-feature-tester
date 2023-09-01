@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"usersegmentator/config"
 	"usersegmentator/pkg/errors"
 	"usersegmentator/pkg/segment"
 )
@@ -16,9 +17,9 @@ type SegmentsHandler struct {
 	ErrLog       *log.Logger
 }
 
-func NewSegmentsHandler(db *sql.DB) *SegmentsHandler {
+func NewSegmentsHandler(db *sql.DB, cfg *config.Config) *SegmentsHandler {
 	return &SegmentsHandler{
-		SegmentsRepo: segment.NewSegmentsRepo(db),
+		SegmentsRepo: segment.NewSegmentsRepo(db, cfg),
 		InfoLog:      log.New(os.Stdout, "INFO\tSEGMENTS HANDLER\t", log.Ldate|log.Ltime),
 		ErrLog:       log.New(os.Stdout, "ERROR\tSEGMENTS HANDLER\t", log.Ldate|log.Ltime),
 	}
@@ -35,25 +36,25 @@ func NewSegmentsHandler(db *sql.DB) *SegmentsHandler {
 //	@Failure		400	{string} string "bad input"
 //	@Failure		500	{string} string "something went wrong"
 //	@Router			/api/create_segment [post]
-func (fh *SegmentsHandler) AddSegment(w http.ResponseWriter, r *http.Request) {
+func (sh *SegmentsHandler) AddSegment(w http.ResponseWriter, r *http.Request) {
 	f := &segment.Template{}
 
 	err := errors.ValidateAndParseJSON(r, f)
 	if err != nil {
-		fh.ErrLog.Printf("%s", err)
+		sh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err = fh.SegmentsRepo.InsertSegment(r.Context(), f.SegmentSlug)
+	err = sh.SegmentsRepo.InsertSegment(r.Context(), f.SegmentSlug)
 	if err != nil {
-		fh.ErrLog.Printf("%s", err)
+		sh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	if f.Fraction != 0 {
-		err = fh.SegmentsRepo.AutoAssignSegment(r.Context(), f.Fraction, f.SegmentSlug)
+		err = sh.SegmentsRepo.AutoAssignSegment(r.Context(), f.Fraction, f.SegmentSlug, 0)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -74,19 +75,19 @@ func (fh *SegmentsHandler) AddSegment(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400	{string} string "bad input"
 //	@Failure		500	{string} string "something went wrong"
 //	@Router			/api/delete_segment [delete]
-func (fh *SegmentsHandler) DeleteSegment(w http.ResponseWriter, r *http.Request) {
+func (sh *SegmentsHandler) DeleteSegment(w http.ResponseWriter, r *http.Request) {
 	f := &segment.Template{}
 
 	err := errors.ValidateAndParseJSON(r, f)
 	if err != nil {
-		fh.ErrLog.Printf("%s", err)
+		sh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err = fh.SegmentsRepo.DeleteSegment(r.Context(), f.SegmentSlug)
+	err = sh.SegmentsRepo.DeleteSegment(r.Context(), f.SegmentSlug)
 	if err != nil {
-		fh.ErrLog.Printf("%s", err)
+		sh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -105,27 +106,27 @@ func (fh *SegmentsHandler) DeleteSegment(w http.ResponseWriter, r *http.Request)
 //	@Failure		400	{string} string "bad input"
 //	@Failure		500	{string} string "something went wrong"
 //	@Router			/api/update_user_segments [post]
-func (fh *SegmentsHandler) UpdateUserSegments(w http.ResponseWriter, r *http.Request) {
+func (sh *SegmentsHandler) UpdateUserSegments(w http.ResponseWriter, r *http.Request) {
 	f := &segment.Template{}
 
 	err := errors.ValidateAndParseJSON(r, f)
 	if err != nil {
-		fh.ErrLog.Printf("%s", err)
+		sh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err = fh.SegmentsRepo.AssignSegments(r.Context(), []int{f.UserID}, f.AssignSegments)
+	err = sh.SegmentsRepo.AssignSegments(r.Context(), []int{f.UserID}, f.AssignSegments, f.TTL)
 	if err != nil {
-		fh.ErrLog.Printf("%s", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		sh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err = fh.SegmentsRepo.UnassignSegments(r.Context(), []int{f.UserID}, f.UnassignSegments)
+	err = sh.SegmentsRepo.UnassignSegments(r.Context(), []int{f.UserID}, f.UnassignSegments)
 	if err != nil {
-		fh.ErrLog.Printf("%s", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		sh.ErrLog.Printf("%s", err)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -144,19 +145,19 @@ func (fh *SegmentsHandler) UpdateUserSegments(w http.ResponseWriter, r *http.Req
 //	@Failure		400	{string} string "bad input"
 //	@Failure		500	{string} string "something went wrong"
 //	@Router			/api/get_user_segments [get]
-func (fh *SegmentsHandler) GetUserSegments(w http.ResponseWriter, r *http.Request) {
+func (sh *SegmentsHandler) GetUserSegments(w http.ResponseWriter, r *http.Request) {
 	receivedUserID := &segment.Template{}
 
 	err := errors.ValidateAndParseJSON(r, receivedUserID)
 	if err != nil {
-		fh.ErrLog.Printf("%s", err)
+		sh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	userSegments, err := fh.SegmentsRepo.GetUserSegments(r.Context(), receivedUserID.UserID)
+	userSegments, err := sh.SegmentsRepo.GetUserSegments(r.Context(), receivedUserID.UserID)
 	if err != nil {
-		fh.ErrLog.Printf("%s", err)
+		sh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

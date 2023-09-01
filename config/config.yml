@@ -15,3 +15,6 @@ mysql:
 report:
   file_prefix: 'report_'
   file_ext: '.csv'
+
+segment:
+  ttl_check_interval: 1

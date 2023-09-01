@@ -59,7 +59,7 @@ func main() {
 	}(db)
 	db.SetMaxOpenConns(cfg.MaxConnections)
 
-	segmentHandler := handlers.NewSegmentsHandler(db)
+	segmentHandler := handlers.NewSegmentsHandler(db, cfg)
 	reportHandler := handlers.NewHistoryHandler(db, cfg)
 
 	r := mux.NewRouter()

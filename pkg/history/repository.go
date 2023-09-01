@@ -34,7 +34,7 @@ func NewHistoryRepo(db *sql.DB, cfg *config.Config) Repository {
 	}
 }
 
-func (rr *historyRepository) ParseAndValidateDates(dateStart, dateEnd string) (*DatesRange, error) {
+func (hr *historyRepository) ParseAndValidateDates(dateStart, dateEnd string) (*DatesRange, error) {
 	dates := &DatesRange{}
 
 	if !regexp.MustCompile(`^\d{4}-\d{1,2}$`).MatchString(dateStart) ||
@@ -47,14 +47,14 @@ func (rr *historyRepository) ParseAndValidateDates(dateStart, dateEnd string) (*
 		dates.StartDate, err = time.Parse("2006-01", dateStart)
 
 		if err != nil {
-			rr.ErrLog.Printf("Error validating date: %s", err)
+			hr.ErrLog.Printf("Error validating date: %s", err)
 			return nil, err
 		}
 	} else {
 		dates.StartDate, err = time.Parse("2006-1", dateStart)
 
 		if err != nil {
-			rr.ErrLog.Printf("Error validating date: %s", err)
+			hr.ErrLog.Printf("Error validating date: %s", err)
 			return nil, err
 		}
 	}
@@ -63,29 +63,29 @@ func (rr *historyRepository) ParseAndValidateDates(dateStart, dateEnd string) (*
 		dates.EndDate, err = time.Parse("2006-01", dateEnd)
 
 		if err != nil {
-			rr.ErrLog.Printf("Error validating date: %s", err)
+			hr.ErrLog.Printf("Error validating date: %s", err)
 			return nil, err
 		}
 	} else {
 		dates.EndDate, err = time.Parse("2006-1", dateEnd)
 
 		if err != nil {
-			rr.ErrLog.Printf("Error validating date: %s", err)
+			hr.ErrLog.Printf("Error validating date: %s", err)
 			return nil, err
 		}
 	}
 
 	if err != nil {
-		rr.ErrLog.Printf("Error validating date: %s", err)
+		hr.ErrLog.Printf("Error validating date: %s", err)
 		return nil, err
 	}
 	dates.EndDate = dates.EndDate.AddDate(0, 1, 0)
 	return dates, nil
 }
 
-func (rr *historyRepository) GetUserHistory(ctx context.Context, userID int, dates *DatesRange) ([]ReportRow, error) {
+func (hr *historyRepository) GetUserHistory(ctx context.Context, userID int, dates *DatesRange) ([]ReportRow, error) {
 	history := []ReportRow{}
-	rows, err := rr.db.QueryContext(
+	rows, err := hr.db.QueryContext(
 		ctx,
 		`SELECT f.slug, ufr.date_assigned, ufr.date_unassigned 
 		FROM user_segment_relation ufr 
@@ -99,7 +99,7 @@ func (rr *historyRepository) GetUserHistory(ctx context.Context, userID int, dat
 	)
 
 	if err != nil {
-		rr.ErrLog.Println(err.Error())
+		hr.ErrLog.Println(err.Error())
 		return nil, err
 	}
 
@@ -108,7 +108,7 @@ func (rr *historyRepository) GetUserHistory(ctx context.Context, userID int, dat
 		var dateAssigned, dateUnassigned sql.NullTime
 		err = rows.Scan(&slug, &dateAssigned, &dateUnassigned)
 		if err != nil {
-			rr.ErrLog.Println(err.Error())
+			hr.ErrLog.Println(err.Error())
 			return nil, err
 		}
 
@@ -137,13 +137,13 @@ func (rr *historyRepository) GetUserHistory(ctx context.Context, userID int, dat
 	}
 	err = rows.Close()
 	if err != nil {
-		rr.ErrLog.Println(err.Error())
+		hr.ErrLog.Println(err.Error())
 		return nil, err
 	}
 	return history, nil
 }
 
-func (rr *historyRepository) CreateCSV(history []ReportRow) (string, error) {
+func (hr *historyRepository) CreateCSV(history []ReportRow) (string, error) {
 	alpa := "abcdefghijklmnopqrstuvwxyz1234567890"
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -152,12 +152,12 @@ func (rr *historyRepository) CreateCSV(history []ReportRow) (string, error) {
 		randStr[i] = alpa[r.Intn(len(alpa))]
 	}
 
-	fileName := rr.cfg.Report.FilePrefix + string(randStr) + rr.cfg.Report.FileExt
-	filePath := rr.cfg.StorageDir + fileName
+	fileName := hr.cfg.Report.FilePrefix + string(randStr) + hr.cfg.Report.FileExt
+	filePath := hr.cfg.StorageDir + fileName
 
 	file, err := os.Create(filePath)
 	if err != nil {
-		rr.ErrLog.Println(err.Error())
+		hr.ErrLog.Println(err.Error())
 		return "", err
 	}
 	defer file.Close()
@@ -169,10 +169,10 @@ func (rr *historyRepository) CreateCSV(history []ReportRow) (string, error) {
 
 	_, err = file.Write([]byte(fileData))
 	if err != nil {
-		rr.ErrLog.Println(err.Error())
+		hr.ErrLog.Println(err.Error())
 		return "", nil
 	}
 
-	fileURL := fmt.Sprintf("%s:%s/reports/%s", rr.cfg.HTTP.Host, rr.cfg.HTTP.Port, fileName)
+	fileURL := fmt.Sprintf("%s:%s/reports/%s", hr.cfg.HTTP.Host, hr.cfg.HTTP.Port, fileName)
 	return fileURL, nil
 }

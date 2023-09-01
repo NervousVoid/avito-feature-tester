@@ -7,6 +7,8 @@ import (
 	"log"
 	"math"
 	"os"
+	"time"
+	"usersegmentator/config"
 	"usersegmentator/pkg/errors"
 )
 
@@ -14,62 +16,132 @@ type Repository interface {
 	InsertSegment(ctx context.Context, segmentSlug string) error
 	DeleteSegment(ctx context.Context, segmentSlug string) error
 	UnassignSegments(ctx context.Context, userID []int, segmentsToUnassign []string) error
-	AssignSegments(ctx context.Context, userID []int, segmentsToAssign []string) error
+	AssignSegments(ctx context.Context, userID []int, segmentsToAssign []string, ttl int) error
 	GetUserSegments(ctx context.Context, userID int) (*Template, error)
 	GetNRandomUsersWithoutSegment(n int, slug string) ([]int, error)
 	GetActiveUsersAmount(ctx context.Context) (int, error)
 	GetSegmentsIDs(ctx context.Context, segmentSlugs []string) ([]int, error)
-	AutoAssignSegment(ctx context.Context, fraction int, slug string) error
+	AutoAssignSegment(ctx context.Context, fraction int, slug string, ttl int) error
+	RunTTLChecker()
 }
 
 type segmentsRepository struct {
 	db      *sql.DB
+	cfg     *config.Config
 	InfoLog *log.Logger
 	ErrLog  *log.Logger
 }
 
-func NewSegmentsRepo(db *sql.DB) Repository {
-	return &segmentsRepository{
+func NewSegmentsRepo(db *sql.DB, cfg *config.Config) Repository {
+	sr := &segmentsRepository{
 		db:      db,
+		cfg:     cfg,
 		InfoLog: log.New(os.Stdout, "INFO\tSEGMENTS REPO\t", log.Ldate|log.Ltime),
 		ErrLog:  log.New(os.Stdout, "ERROR\tSEGMENTS REPO\t", log.Ldate|log.Ltime),
 	}
+
+	go func() {
+		sr.RunTTLChecker()
+	}()
+	return sr
 }
 
-func (fr *segmentsRepository) AutoAssignSegment(ctx context.Context, fraction int, slug string) error {
+func (sr *segmentsRepository) RunTTLChecker() {
+	sr.InfoLog.Printf("TTL checker is running")
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
+	ctx := context.Background()
+
+	for {
+		select {
+		case <-ticker.C:
+			tx, err := sr.db.BeginTx(ctx, nil)
+			if err != nil {
+				sr.ErrLog.Printf("%s: %s", errors.ErrorBeginTransaction, err)
+				continue
+			}
+
+			rows, err := tx.QueryContext(ctx, "SELECT id FROM user_segment_relation "+
+				"WHERE date_unassigned <= CURRENT_TIMESTAMP AND is_active = TRUE")
+
+			if err != nil {
+				sr.ErrLog.Printf("error checking table for ttl: %s", err)
+				if rbErr := tx.Rollback(); rbErr != nil {
+					sr.ErrLog.Printf("rollback error: %s", rbErr)
+					continue
+				}
+			}
+
+			var curID int
+			ids := []int{}
+
+			for rows.Next() {
+				err = rows.Scan(&curID)
+				if err != nil {
+					sr.ErrLog.Printf("error reading row: %s", err)
+					continue
+				}
+				ids = append(ids, curID)
+			}
+
+			err = rows.Close()
+			if err != nil {
+				sr.ErrLog.Printf("error closing rows: %s", err)
+			}
+
+			for _, id := range ids {
+				_, err := tx.ExecContext(ctx, "UPDATE user_segment_relation SET is_active = FALSE WHERE id = ?", id)
+				if err != nil {
+					sr.ErrLog.Printf("error unassigning segments: %s", err)
+					if rbErr := tx.Rollback(); rbErr != nil {
+						sr.ErrLog.Printf("rollback error: %s", rbErr)
+					}
+				}
+			}
+
+			err = tx.Commit()
+			if err != nil {
+				sr.ErrLog.Printf("%s: %s", errors.ErrorCommittingTransaction, err)
+			}
+		}
+	}
+}
+
+func (sr *segmentsRepository) AutoAssignSegment(ctx context.Context, fraction int, slug string, ttl int) error {
 	if fraction < 1 || fraction > 100 {
-		fr.ErrLog.Printf("invalid fraction value: %d", fraction)
+		sr.ErrLog.Printf("invalid fraction value: %d", fraction)
 		return fmt.Errorf("invalid fraction value: %d", fraction)
 	}
 
-	activeUsers, err := fr.GetActiveUsersAmount(ctx)
+	activeUsers, err := sr.GetActiveUsersAmount(ctx)
 	if err != nil {
-		fr.ErrLog.Printf("%s", err)
+		sr.ErrLog.Printf("%s", err)
 		return err
 	}
 
 	sampleSize := int(math.Ceil(float64(activeUsers) * (float64(fraction) / 100))) //nolint:gomnd // creating percents
 
-	users, err := fr.GetNRandomUsersWithoutSegment(sampleSize, slug)
+	users, err := sr.GetNRandomUsersWithoutSegment(sampleSize, slug)
 	if err != nil {
-		fr.ErrLog.Printf("%s", err)
+		sr.ErrLog.Printf("%s", err)
 		return err
 	}
 
-	err = fr.AssignSegments(ctx, users, []string{slug})
+	err = sr.AssignSegments(ctx, users, []string{slug}, ttl)
 	if err != nil {
-		fr.ErrLog.Printf("%s", err)
+		sr.ErrLog.Printf("%s", err)
 		return err
 	}
 
 	return nil
 }
 
-func (fr *segmentsRepository) GetSegmentsIDs(ctx context.Context, segmentSlugs []string) ([]int, error) {
+func (sr *segmentsRepository) GetSegmentsIDs(ctx context.Context, segmentSlugs []string) ([]int, error) {
 	ids := []int{}
 	for _, f := range segmentSlugs {
 		var curID int
-		row, err := fr.db.QueryContext(ctx, "SELECT id FROM segments WHERE slug = ? LIMIT 1", f)
+		row, err := sr.db.QueryContext(ctx, "SELECT id FROM segments WHERE slug = ? LIMIT 1", f)
 		if err != nil {
 			return []int{}, err
 		}
@@ -89,10 +161,10 @@ func (fr *segmentsRepository) GetSegmentsIDs(ctx context.Context, segmentSlugs [
 	return ids, nil
 }
 
-func (fr *segmentsRepository) GetNRandomUsersWithoutSegment(n int, slug string) ([]int, error) {
+func (sr *segmentsRepository) GetNRandomUsersWithoutSegment(n int, slug string) ([]int, error) {
 	userIDs := []int{}
 
-	rows, err := fr.db.Query(
+	rows, err := sr.db.Query(
 		`SELECT DISTINCT u.id FROM users u
 				WHERE (SELECT user_id 
 					   FROM user_segment_relation 
@@ -130,10 +202,10 @@ func (fr *segmentsRepository) GetNRandomUsersWithoutSegment(n int, slug string) 
 	return userIDs, nil
 }
 
-func (fr *segmentsRepository) GetActiveUsersAmount(ctx context.Context) (int, error) {
+func (sr *segmentsRepository) GetActiveUsersAmount(ctx context.Context) (int, error) {
 	var amount int
 
-	row, err := fr.db.QueryContext(ctx, "SELECT COUNT(id) FROM users WHERE is_active = TRUE")
+	row, err := sr.db.QueryContext(ctx, "SELECT COUNT(id) FROM users WHERE is_active = TRUE")
 	if err != nil {
 		return -1, err
 	}
@@ -152,12 +224,12 @@ func (fr *segmentsRepository) GetActiveUsersAmount(ctx context.Context) (int, er
 	return amount, nil
 }
 
-func (fr *segmentsRepository) InsertSegment(ctx context.Context, segmentSlug string) error {
+func (sr *segmentsRepository) InsertSegment(ctx context.Context, segmentSlug string) error {
 	if segmentSlug == "" {
 		return fmt.Errorf("empty segment slug")
 	}
 
-	_, err := fr.db.ExecContext(
+	_, err := sr.db.ExecContext(
 		ctx,
 		"INSERT INTO segments (`slug`) VALUES (?) ON DUPLICATE KEY UPDATE is_active = TRUE",
 		segmentSlug,
@@ -166,20 +238,20 @@ func (fr *segmentsRepository) InsertSegment(ctx context.Context, segmentSlug str
 		return err
 	}
 
-	fr.InfoLog.Printf("InsertSegment — %s\n", segmentSlug)
+	sr.InfoLog.Printf("InsertSegment — %s\n", segmentSlug)
 	return nil
 }
 
-func (fr *segmentsRepository) DeleteSegment(ctx context.Context, segmentSlug string) error {
-	segmentID, err := fr.GetSegmentsIDs(ctx, []string{segmentSlug})
+func (sr *segmentsRepository) DeleteSegment(ctx context.Context, segmentSlug string) error {
+	segmentID, err := sr.GetSegmentsIDs(ctx, []string{segmentSlug})
 	if err != nil {
-		fr.ErrLog.Printf("%s: %s", errors.ErrorGettingSegmentID, err)
+		sr.ErrLog.Printf("%s: %s", errors.ErrorGettingSegmentID, err)
 		return err
 	}
 
-	tx, err := fr.db.BeginTx(ctx, nil)
+	tx, err := sr.db.BeginTx(ctx, nil)
 	if err != nil {
-		fr.ErrLog.Printf("%s: %s", errors.ErrorBeginTransaction, err)
+		sr.ErrLog.Printf("%s: %s", errors.ErrorBeginTransaction, err)
 		return err
 	}
 
@@ -207,27 +279,27 @@ func (fr *segmentsRepository) DeleteSegment(ctx context.Context, segmentSlug str
 
 	err = tx.Commit()
 	if err != nil {
-		fr.ErrLog.Printf("%s: %s", errors.ErrorCommittingTransaction, err)
+		sr.ErrLog.Printf("%s: %s", errors.ErrorCommittingTransaction, err)
 		return err
 	}
 
-	fr.InfoLog.Printf("DeleteSegment — %s\n", segmentSlug)
+	sr.InfoLog.Printf("DeleteSegment — %s\n", segmentSlug)
 	return nil
 }
 
-func (fr *segmentsRepository) UnassignSegments(ctx context.Context, userID []int, segmentsToUnassign []string) error {
+func (sr *segmentsRepository) UnassignSegments(ctx context.Context, userID []int, segmentsToUnassign []string) error {
 	if len(segmentsToUnassign) == 0 {
 		return nil
 	}
 
-	ids, err := fr.GetSegmentsIDs(ctx, segmentsToUnassign)
+	ids, err := sr.GetSegmentsIDs(ctx, segmentsToUnassign)
 	if err != nil {
 		return err
 	}
 
-	tx, err := fr.db.BeginTx(ctx, nil)
+	tx, err := sr.db.BeginTx(ctx, nil)
 	if err != nil {
-		fr.ErrLog.Printf("%s: %s", errors.ErrorBeginTransaction, err)
+		sr.ErrLog.Printf("%s: %s", errors.ErrorBeginTransaction, err)
 		return err
 	}
 
@@ -253,27 +325,35 @@ func (fr *segmentsRepository) UnassignSegments(ctx context.Context, userID []int
 
 	err = tx.Commit()
 	if err != nil {
-		fr.ErrLog.Printf("%s: %s", errors.ErrorCommittingTransaction, err)
+		sr.ErrLog.Printf("%s: %s", errors.ErrorCommittingTransaction, err)
 		return err
 	}
 
-	fr.InfoLog.Printf("UnassignSegments — %d\n", userID)
+	sr.InfoLog.Printf("UnassignSegments — %d\n", userID)
 	return nil
 }
 
-func (fr *segmentsRepository) AssignSegments(ctx context.Context, userID []int, segmentsToAssign []string) error {
+func (sr *segmentsRepository) AssignSegments(
+	ctx context.Context,
+	userID []int,
+	segmentsToAssign []string,
+	ttl int,
+) error {
+	if len(segmentsToAssign) == 0 {
+		return nil
+	}
 	if len(segmentsToAssign) == 0 {
 		return nil
 	}
 
-	ids, err := fr.GetSegmentsIDs(ctx, segmentsToAssign)
+	ids, err := sr.GetSegmentsIDs(ctx, segmentsToAssign)
 	if err != nil {
 		return err
 	}
 
-	tx, err := fr.db.BeginTx(ctx, nil)
+	tx, err := sr.db.BeginTx(ctx, nil)
 	if err != nil {
-		fr.ErrLog.Printf("%s: %s", errors.ErrorBeginTransaction, err)
+		sr.ErrLog.Printf("%s: %s", errors.ErrorBeginTransaction, err)
 		return err
 	}
 
@@ -305,34 +385,43 @@ func (fr *segmentsRepository) AssignSegments(ctx context.Context, userID []int, 
 				return nil
 			}
 
-			_, err = tx.ExecContext(
+			result, err := tx.ExecContext(
 				ctx,
 				"INSERT INTO user_segment_relation (`user_id`, `segment_id`) VALUES (?, ?)",
 				usr,
 				segmentID,
 			)
-
 			if err != nil {
 				if rbErr := tx.Rollback(); rbErr != nil {
 					return fmt.Errorf("transaction error: %w, rollback error: %s", err, rbErr)
 				}
 				return err
 			}
+
+			if lastID, err := result.LastInsertId(); err == nil && ttl != 0 {
+				unassignTime := time.Now().AddDate(0, 0, ttl)
+				_, err = tx.ExecContext(
+					ctx,
+					"UPDATE user_segment_relation SET date_unassigned = ? WHERE id = ?",
+					unassignTime,
+					lastID,
+				)
+			}
 		}
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		fr.ErrLog.Printf("%s: %s", errors.ErrorCommittingTransaction, err)
+		sr.ErrLog.Printf("%s: %s", errors.ErrorCommittingTransaction, err)
 		return err
 	}
 
-	fr.InfoLog.Printf("AssignSegments — %d\n", userID)
+	sr.InfoLog.Printf("AssignSegments — %d\n", userID)
 	return nil
 }
 
-func (fr *segmentsRepository) GetUserSegments(ctx context.Context, userID int) (*Template, error) {
-	rows, err := fr.db.QueryContext(
+func (sr *segmentsRepository) GetUserSegments(ctx context.Context, userID int) (*Template, error) {
+	rows, err := sr.db.QueryContext(
 		ctx,
 		"SELECT slug FROM segments "+
 			"WHERE id IN ("+
@@ -363,6 +452,6 @@ func (fr *segmentsRepository) GetUserSegments(ctx context.Context, userID int) (
 		return nil, err
 	}
 
-	fr.InfoLog.Printf("GetSegments — %d\n", userID)
+	sr.InfoLog.Printf("GetSegments — %d\n", userID)
 	return userSegments, nil
 }

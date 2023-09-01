@@ -11,6 +11,7 @@ type Config struct {
 	MySQL           `yaml:"mysql"`
 	HTTP            `yaml:"http"`
 	Report          `yaml:"report"`
+	Segment         `yaml:"segment"`
 }
 
 type UserSegmentator struct {
@@ -36,6 +37,10 @@ type Report struct {
 	FilePrefix string `yaml:"file_prefix"`
 	FileExt    string `yaml:"file_ext"`
 	StorageDir string `env-required:"true"  env:"REPORTS_STORAGE"`
+}
+
+type Segment struct {
+	TTLCheckInterval int `yaml:"ttl_check_interval"`
 }
 
 func NewConfig() (*Config, error) {

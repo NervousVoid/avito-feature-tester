@@ -24,29 +24,20 @@ CREATE TABLE `user_segment_relation` (
     `is_active` BOOL DEFAULT TRUE NOT NULL,
     `date_assigned` DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
     `date_unassigned` DATETIME,
-    `ttl` DATETIME,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (segment_id) REFERENCES segments(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-# INSERT INTO `users` (`id`) VALUES
-# (1000),
-# (1001),
-# (1002),
-# (1003),
-# (1004),
-# (1005);
-
 # Auto users creation
 DELIMITER //
 CREATE PROCEDURE AutoInsertValuesToTable()
-    BEGIN
-        DECLARE startingRange INT DEFAULT 1000;
-        WHILE startingRange <= 2000 DO
+BEGIN
+    DECLARE startingRange INT DEFAULT 1000;
+    WHILE startingRange <= 2000 DO
             INSERT INTO `users` (`id`) VALUES (startingRange);
             SET startingRange = startingRange + 1;
         END WHILE;
-    END
+END
 //
 DELIMITER ;
 CALL AutoInsertValuesToTable();
