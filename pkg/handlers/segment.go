@@ -116,7 +116,7 @@ func (sh *SegmentsHandler) UpdateUserSegments(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = sh.SegmentsRepo.AssignSegments(r.Context(), []int{f.UserID}, f.AssignSegments, f.TTL)
+	err = sh.SegmentsRepo.AssignSegments(r.Context(), []int{f.UserID}, f.AssignSegments, f.TTL, f.CurTime)
 	if err != nil {
 		sh.ErrLog.Printf("%s", err)
 		w.WriteHeader(http.StatusBadRequest)

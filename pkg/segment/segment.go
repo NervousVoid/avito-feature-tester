@@ -8,6 +8,7 @@ type Template struct {
 	UnassignSegments []string `json:"unassign_segments,omitempty"`
 	Fraction         int      `json:"fraction,omitempty"`
 	TTL              int      `json:"ttl"`
+	CurTime          string   `json:"cur_time"`
 }
 
 type RequestUserID struct {

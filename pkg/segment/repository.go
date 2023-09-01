@@ -16,7 +16,7 @@ type Repository interface {
 	InsertSegment(ctx context.Context, segmentSlug string) error
 	DeleteSegment(ctx context.Context, segmentSlug string) error
 	UnassignSegments(ctx context.Context, userID []int, segmentsToUnassign []string) error
-	AssignSegments(ctx context.Context, userID []int, segmentsToAssign []string, ttl int) error
+	AssignSegments(ctx context.Context, userID []int, segmentsToAssign []string, ttl int, curTime string) error
 	GetUserSegments(ctx context.Context, userID int) (*Template, error)
 	GetNRandomUsersWithoutSegment(n int, slug string) ([]int, error)
 	GetActiveUsersAmount(ctx context.Context) (int, error)
@@ -30,12 +30,14 @@ type segmentsRepository struct {
 	cfg     *config.Config
 	InfoLog *log.Logger
 	ErrLog  *log.Logger
+	curTime string
 }
 
 func NewSegmentsRepo(db *sql.DB, cfg *config.Config) Repository {
 	sr := &segmentsRepository{
 		db:      db,
 		cfg:     cfg,
+		curTime: "2023-09-01",
 		InfoLog: log.New(os.Stdout, "INFO\tSEGMENTS REPO\t", log.Ldate|log.Ltime),
 		ErrLog:  log.New(os.Stdout, "ERROR\tSEGMENTS REPO\t", log.Ldate|log.Ltime),
 	}
@@ -62,8 +64,11 @@ func (sr *segmentsRepository) RunTTLChecker() {
 				continue
 			}
 
+			//rows, err := tx.QueryContext(ctx, "SELECT id FROM user_segment_relation "+
+			//	"WHERE date_unassigned <= CURRENT_TIMESTAMP AND is_active = TRUE")
+
 			rows, err := tx.QueryContext(ctx, "SELECT id FROM user_segment_relation "+
-				"WHERE date_unassigned <= CURRENT_TIMESTAMP AND is_active = TRUE")
+				"WHERE date_unassigned <= ? AND is_active = TRUE", sr.curTime)
 
 			if err != nil {
 				sr.ErrLog.Printf("error checking table for ttl: %s", err)
@@ -128,7 +133,7 @@ func (sr *segmentsRepository) AutoAssignSegment(ctx context.Context, fraction in
 		return err
 	}
 
-	err = sr.AssignSegments(ctx, users, []string{slug}, ttl)
+	err = sr.AssignSegments(ctx, users, []string{slug}, ttl, "2023-09-01")
 	if err != nil {
 		sr.ErrLog.Printf("%s", err)
 		return err
@@ -338,7 +343,9 @@ func (sr *segmentsRepository) AssignSegments(
 	userID []int,
 	segmentsToAssign []string,
 	ttl int,
+	curTime string,
 ) error {
+	sr.curTime = curTime
 	if len(segmentsToAssign) == 0 {
 		return nil
 	}
