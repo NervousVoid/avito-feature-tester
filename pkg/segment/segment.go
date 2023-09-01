@@ -23,6 +23,7 @@ type RequestUpdateSegments struct {
 	UserID           int      `json:"user_id"`
 	AssignSegments   []string `json:"assign_segments"`
 	UnassignSegments []string `json:"unassign_segments"`
+	TTL              int      `json:"ttl"`
 }
 
 type UserSegments struct {

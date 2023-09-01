@@ -26,6 +26,8 @@ definitions:
         items:
           type: string
         type: array
+      ttl:
+        type: integer
       unassign_segments:
         items:
           type: string

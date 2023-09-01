@@ -284,6 +284,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "ttl": {
+                    "type": "integer"
+                },
                 "unassign_segments": {
                     "type": "array",
                     "items": {
