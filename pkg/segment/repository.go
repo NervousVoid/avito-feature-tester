@@ -17,7 +17,7 @@ type Repository interface {
 	DeleteSegment(ctx context.Context, segmentSlug string) error
 	UnassignSegments(ctx context.Context, userID []int, segmentsToUnassign []string) error
 	AssignSegments(ctx context.Context, userID []int, segmentsToAssign []string, ttl int) error
-	GetUserSegments(ctx context.Context, userID int) (*Template, error)
+	GetUserSegments(ctx context.Context, userID int) (*UserSegments, error)
 	GetNRandomUsersWithoutSegment(n int, slug string) ([]int, error)
 	GetActiveUsersAmount(ctx context.Context) (int, error)
 	GetSegmentsIDs(ctx context.Context, segmentSlugs []string) ([]int, error)
@@ -420,7 +420,7 @@ func (sr *segmentsRepository) AssignSegments(
 	return nil
 }
 
-func (sr *segmentsRepository) GetUserSegments(ctx context.Context, userID int) (*Template, error) {
+func (sr *segmentsRepository) GetUserSegments(ctx context.Context, userID int) (*UserSegments, error) {
 	rows, err := sr.db.QueryContext(
 		ctx,
 		"SELECT slug FROM segments "+
@@ -434,7 +434,7 @@ func (sr *segmentsRepository) GetUserSegments(ctx context.Context, userID int) (
 		return nil, err
 	}
 
-	userSegments := &Template{
+	userSegments := &UserSegments{
 		UserID:   userID,
 		Segments: []string{},
 	}
