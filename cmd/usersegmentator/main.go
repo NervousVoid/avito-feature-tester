@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 	"usersegmentator/config"
-	"usersegmentator/pkg/errors"
+	errs "usersegmentator/pkg/errors"
 	"usersegmentator/pkg/handlers"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -45,7 +49,7 @@ func main() {
 	dsn += "&interpolateParams=true"
 	dsn += "&parseTime=true"
 
-	db, err := errors.DBConnectLoop(dsn, time.Duration(cfg.Timeout*1e9)) //nolint:gomnd // converting nanosecs to secs
+	db, err := errs.DBConnectLoop(dsn, time.Duration(cfg.Timeout*1e9)) //nolint:gomnd // converting nanosecs to secs
 	if err != nil {
 		errLog.Printf("Couldn't start database driver: %s\n", err)
 		return
@@ -73,10 +77,31 @@ func main() {
 		http.StripPrefix("/reports/",
 			http.FileServer(http.Dir("./"+cfg.StorageDir))))
 
-	infoLog.Printf("starting server at %s:%s", cfg.HTTP.Host, cfg.HTTP.Port)
-
-	err = http.ListenAndServe(cfg.HTTP.Host+":"+cfg.HTTP.Port, r)
-	if err != nil {
-		errLog.Printf("listen and serve: %s\n", err)
+	srv := &http.Server{
+		Addr:    cfg.HTTP.Host + ":" + cfg.HTTP.Port,
+		Handler: r,
 	}
+
+	stopped := make(chan struct{})
+	go func() {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		<-sigint
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err = srv.Shutdown(ctx); err != nil {
+			errLog.Printf("HTTP Server Shutdown Error: %v\n", err)
+		}
+		close(stopped)
+	}()
+
+	infoLog.Printf("Starting HTTP server at %s:%s\n", cfg.HTTP.Host, cfg.HTTP.Port)
+
+	if err = srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		errLog.Printf("HTTP server ListenAndServe error: %v\n", err)
+	}
+
+	<-stopped
+
+	infoLog.Println("Server has been gracefully stopped")
 }
